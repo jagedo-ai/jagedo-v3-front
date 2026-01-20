@@ -8,6 +8,52 @@ import { useNavigate } from "react-router-dom";
 import { loginUser, verifyOtpLogin, phoneLogin } from "@/api/auth.api";
 import { useGlobalContext } from "@/context/GlobalProvider";
 import GoogleSignIn from "@/components/GoogleSignIn";
+import { MOCK_USERS } from "@/pages/mockusers"; // Make sure path is correct
+
+// import { MOCK_USERS } from "@/pages/mockusers"; 
+
+
+// const MOCK_USERS = [
+//   {
+//     username: "customer01@jagedo.co.ke",
+//     password: "Customer@123",
+//     userType: "customer",
+//     profileType: "individual",
+//     name: "Individual Customer 1",
+//   },
+//   {
+//     username: "customer02@jagedo.co.ke@2",
+//     password: "Customer@123",
+//     userType: "customer",
+//     profileType: "organization",
+//     name: "Organization Customer 2",
+//   },
+//   {
+//     username: "fundi01@jagedo.co.ke",
+//     password: "Builder@123",
+//     userType: "fundi",
+//     name: "Fundi User",
+//   },
+//   {
+//     username: "professional01@jagedo.co.ke",
+//     password: "Builder@123",
+//     userType: "professional",
+//     name: "Professional User",
+//   },
+//   {
+//     username: "contractor01@jagedo.co.ke",
+//     password: "Builder@123",
+//     userType: "contractor",
+//     name: "Contractor User",
+//   },
+//   {
+//     username: "hardware01@jagedo.co.ke1",
+//     password: "Builder@123",
+//     userType: "hardware",
+//     name: "Hardware User",
+//   },
+// ];
+
 
 /* =====================
    VALIDATORS
@@ -91,44 +137,59 @@ export default function Login() {
      SUBMIT HANDLER
   ===================== */
   const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    setIsLoading(true);
+  setIsLoading(true);
 
-    setTimeout(() => {
-      const phone = formData.email.replace(/\D/g, "");
-      const email = formData.email.trim();
+  setTimeout(() => {
+    const username = formData.email.trim();
+    const password = formData.password;
 
-      if (isOtpFlow) {
-        if (!otpSent) {
-          setOtpSent(true);
-          toast.success("OTP sent successfully");
-          setIsLoading(false);
-          return;
-        }
+    completeLogin(username, password);
+    setIsLoading(false);
+  }, 800);
+};
 
-        const mockUser = {
-          userType: "customer",
-          phone: isValidPhone(phone) ? phone : null,
-          email: isValidEmail(email) ? email : null,
-          name: "Mock OTP User",
-          authType: "otp",
-        };
+//   const handleSubmit = (e) => {
+//     e.preventDefault();
+//     if (!validateForm()) return;
 
-        completeLogin(mockUser);
-      } else {
-        const mockUser = {
-          userType: "customer",
-          email,
-          name: "Mock Password User",
-          authType: "password",
-        };
+//     setIsLoading(true);
 
-        completeLogin(mockUser);
-      }
-    }, 800);
-  };
+//     setTimeout(() => {
+//       const phone = formData.email.replace(/\D/g, "");
+//       const email = formData.email.trim();
+
+//       if (isOtpFlow) {
+//         if (!otpSent) {
+//           setOtpSent(true);
+//           toast.success("OTP sent successfully");
+//           setIsLoading(false);
+//           return;
+//         }
+
+//         const mockUser = {
+//           userType: "customer",
+//           phone: isValidPhone(phone) ? phone : null,
+//           email: isValidEmail(email) ? email : null,
+//           name: "Mock OTP User",
+//           authType: "otp",
+//         };
+
+//         completeLogin(mockUser);
+//       } else {
+//         const mockUser = {
+//           userType: "customer",
+//           email,
+//           name: "Mock Password User",
+//           authType: "password",
+//         };
+
+//         completeLogin(mockUser);
+//       }
+//     }, 800);
+//   };
 
   /* =====================
      GOOGLE LOGIN HANDLER
@@ -164,25 +225,77 @@ export default function Login() {
   /* =====================
      COMPLETE LOGIN
   ===================== */
-  const completeLogin = (user) => {
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("token", "mock-token");
+//   const completeLogin = (user) => {
+//     localStorage.setItem("user", JSON.stringify(user));
+//     localStorage.setItem("token", "mock-token");
 
-    setUser(user);
-    setIsLoggedIn(true);
+//     setUser(user);
+//     setIsLoggedIn(true);
 
-    toast.success("Login successful!");
-    redirectUser(user.userType);
-  };
+//     toast.success("Login successful!");
+//     redirectUser(user.userType);
+//   };
+const completeLogin = (username, password) => {
+  const user = MOCK_USERS.find(
+    (u) => u.username === username && u.password === password
+  );
+
+  if (!user) {
+    toast.error("Invalid credentials");
+    setIsLoading(false);
+    return;
+  }
+
+  // Store user in localStorage
+  localStorage.setItem("user", JSON.stringify(user));
+  localStorage.setItem("token", "mock-token");
+
+  setUser(user);
+  setIsLoggedIn(true);
+
+  toast.success("Login successful!");
+
+  // Redirect based on userType
+//   redirectUser(user);
+navigate("/profile");
+};
+
 
   /* =====================
      REDIRECT
   ===================== */
-  const redirectUser = () => {
-    setTimeout(() => {
-      navigate("/dashboard/customer");
-    }, 800);
-  };
+//   const redirectUser = () => {
+//     setTimeout(() => {
+//       navigate("/dashboard/customer");
+//     }, 800);
+//   };
+const redirectUser = (user) => {
+  let path = "/dashboard/customer"; // default
+
+  switch (user.userType) {
+    case "customer":
+      path = user.profileType === "organization"
+        ? "/dashboard/customer/organization"
+        : "/dashboard/customer/individual";
+      break;
+    case "fundi":
+      path = "/dashboard/fundi";
+      break;
+    case "professional":
+      path = "/dashboard/professional";
+      break;
+    case "contractor":
+      path = "/dashboard/contractor";
+      break;
+    case "hardware":
+      path = "/dashboard/hardware";
+      break;
+    default:
+      path = "/dashboard";
+  }
+
+  navigate(path);
+};
 
   const toggleOtpFlow = () => {
     setIsOtpFlow(!isOtpFlow);
