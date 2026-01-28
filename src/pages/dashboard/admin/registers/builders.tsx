@@ -28,27 +28,6 @@ const STATUS_COLORS: Record<string, string> = {
   RETURNED: "bg-red-100 text-red-800",
   COMPLETED: "bg-blue-100 text-blue-800",
 };
-
-// Pseudo-logic for admin actions based on status:
-const getAvailableActions = (status: string) => {
-  switch (status) {
-    case "SIGNED_UP":
-      return ["ViewDocuments", "RequestMoreInfo"];
-    case "PENDING":
-      return ["Approve", "Return", "Suspend"];
-    case "RETURNED":
-      return ["Approve", "Resubmit"];
-    case "VERIFIED":
-      return ["Suspend", "Revoke"];
-    case "SUSPENDED":
-      return ["Unsuspend"];
-    case "DELETED":
-      return ["Restore"];
-    default:
-      return [];
-  }
-};
-
 export default function BuildersAdmin() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -314,18 +293,6 @@ export default function BuildersAdmin() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">Status</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => updateFilter("status", e.target.value)}
-                  className="w-full border-gray-300 border p-2 rounded-md"
-                >
-                
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
         </>
@@ -334,7 +301,6 @@ export default function BuildersAdmin() {
     
   );
 }
-
 
 
 
