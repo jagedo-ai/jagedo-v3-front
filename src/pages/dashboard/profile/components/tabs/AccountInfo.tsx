@@ -233,7 +233,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                   onClick={handleButtonClick}
                   className="mt-4 text-blue-900 hover:text-blue-700 text-sm font-medium"
                 >
-                  Change Photo
+                  Changed Photo
                 </button>
                 <input
                   type="file"

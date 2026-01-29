@@ -1,10 +1,10 @@
 import React from 'react';
-import { User, Home, Upload, Briefcase, Package, ArrowLeft } from 'lucide-react';
-
+import { User, Home, Upload, Briefcase, Package, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   userType: string;
+  completionStatus?: { [key: string]: 'complete' | 'incomplete' };  // ← ADD THIS LINE
 }
 
 // Base navigation items for all users
@@ -37,7 +37,7 @@ const productsItem = {
   color: 'text-indigo-600',
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, completionStatus = {} }) => {
   // Determine which navigation items to show based on user type
   const getNavigationItems = () => {
     // CUSTOMER: Account Info → Address → Account Uploads
@@ -132,6 +132,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType }) =
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
+            const status = completionStatus[item.id] || 'incomplete';
+            const isComplete = status === 'complete';
 
             return (
               <li key={item.id}>
@@ -149,12 +151,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType }) =
                     }`}
                   />
                   <span
-                    className={`font-medium ${
+                    className={`font-medium flex-1 ${
                       isActive ? 'text-blue-700' : 'text-gray-700'
                     }`}
                   >
                     {item.label}
                   </span>
+                  
+                  {isComplete ? (
+                    <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                  )}
                 </button>
               </li>
             );

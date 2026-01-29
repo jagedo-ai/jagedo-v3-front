@@ -862,6 +862,9 @@ const removeCategory = (index: number) => {
       console.error(error);
     } finally {
       setIsSavingInfo(false);
+      
+      // ✅ Trigger sidebar to update status (dispatch event so parent component recalculates)
+      window.dispatchEvent(new Event('storage'));
     }
   };
 
