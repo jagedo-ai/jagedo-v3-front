@@ -132,6 +132,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, com
             const isActive = activeTab === item.id;
             const status = completionStatus[item.id] || 'incomplete';
             const isComplete = status === 'complete';
+            // Products section is optional - don't show status indicator
+            const isOptional = item.id === 'products';
 
             return (
               <li key={item.id}>
@@ -155,12 +157,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, com
                     }`}
                   >
                     {item.label}
+                    {isOptional && <span className="text-xs text-gray-400 ml-1">(Optional)</span>}
                   </span>
-                  
-                  {isComplete ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+
+                  {!isOptional && (
+                    isComplete ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                    )
                   )}
                 </button>
               </li>
