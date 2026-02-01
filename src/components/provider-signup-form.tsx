@@ -437,60 +437,29 @@ export function ProviderSignupForm({
                                             <SelectValue placeholder="Choose your profession" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-white">
-                                            <SelectItem value="Project Manager">
-                                                Project Manager
-                                            </SelectItem>
-                                            <SelectItem value="Construction Manager">
-                                                Construction Manager
-                                            </SelectItem>
-                                            <SelectItem value="Architect">
-                                                Architect
-                                            </SelectItem>
-                                            <SelectItem value="Water Engineer">
-                                                Water Engineer
-                                            </SelectItem>
-                                            <SelectItem value="Roads Engineer">
-                                                Roads Engineer
-                                            </SelectItem>
-                                            <SelectItem value="Structural Engineer">
-                                                Structural Engineer
-                                            </SelectItem>
-                                            <SelectItem value="Mechanical Engineer">
-                                                Mechanical Engineer
-                                            </SelectItem>
-                                            <SelectItem value="Electrical Engineer">
-                                                Electrical Engineer
-                                            </SelectItem>
-                                            <SelectItem value="Geotechnical Engineer">
-                                                Geotechnical Engineer
-                                            </SelectItem>
-                                            <SelectItem value="Quantity Surveyor">
-                                                Quantity Surveyor
-                                            </SelectItem>
-                                            <SelectItem value="Safety Officer">
-                                                Safety Officer
-                                            </SelectItem>
-                                            <SelectItem value="Land Surveyor">
-                                                Land Surveyor
-                                            </SelectItem>
-                                            <SelectItem value="Topo Surveyor">
-                                                Topo Surveyor
-                                            </SelectItem>
-                                            <SelectItem value="Interior Designer">
-                                                Interior Designer
-                                            </SelectItem>
-                                            <SelectItem value="Landscape Architect">
-                                                Landscape Architect
-                                            </SelectItem>
-                                            <SelectItem value="Hydrologist">
-                                                Hydrologist
-                                            </SelectItem>
-                                            <SelectItem value="Geologist">
-                                                Geologist
-                                            </SelectItem>
-                                            <SelectItem value="Environment Officer">
-                                                Environment Officer
-                                            </SelectItem>
+                                            {/* Search input */}
+                                            <div className="p-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search profession..."
+                                                    value={professionSearch}
+                                                    onChange={(e) => setProfessionSearch(e.target.value)}
+                                                    className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                                />
+                                            </div>
+
+                                            {/* Scrollable list */}
+                                            <div className="max-h-60 overflow-y-auto">
+                                                {professions
+                                                    .filter((profession) =>
+                                                        profession.toLowerCase().includes(professionSearch.toLowerCase())
+                                                    )
+                                                    .map((profession) => (
+                                                        <SelectItem key={profession} value={profession}>
+                                                            {profession}
+                                                        </SelectItem>
+                                                    ))}
+                                            </div>
                                         </SelectContent>
                                     </Select>
                                 </div>

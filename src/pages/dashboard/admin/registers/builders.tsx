@@ -70,20 +70,51 @@ export default function BuildersAdmin() {
 
   const navigate = useNavigate();
 
-  // Clear localStorage and load fresh mock data
+  // Load builders from localStorage, or initialize with mock data if empty
   useEffect(() => {
     setLoading(true);
     setError(null);
     try {
-      // Force refresh with mock data to ensure proper status values
-      localStorage.setItem("builders", JSON.stringify(mockBuilders));
-      setBuilders(mockBuilders);
+      const stored = localStorage.getItem("builders");
+      if (stored) {
+        // Use existing data from localStorage (preserves user changes)
+        const parsedBuilders = JSON.parse(stored);
+        if (Array.isArray(parsedBuilders) && parsedBuilders.length > 0) {
+          setBuilders(parsedBuilders);
+        } else {
+          // Empty or invalid array - seed with mock data
+          localStorage.setItem("builders", JSON.stringify(mockBuilders));
+          setBuilders(mockBuilders);
+        }
+      } else {
+        // No data exists - initialize with mock data (first time only)
+        localStorage.setItem("builders", JSON.stringify(mockBuilders));
+        setBuilders(mockBuilders);
+      }
     } catch (err) {
       setError("Failed to load builders");
+      // Fallback to mock data on error, but don't overwrite localStorage
       setBuilders(mockBuilders);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // --- Refresh builders when page comes back into focus ---
+  useEffect(() => {
+    const handleFocus = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem("builders") || "null");
+        if (stored && Array.isArray(stored) && stored.length > 0) {
+          setBuilders(stored);
+        }
+      } catch (err) {
+        console.error("Failed to refresh builders:", err);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   const filteredBuilders = builders.filter((builder) => {
