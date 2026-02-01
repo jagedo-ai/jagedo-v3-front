@@ -15,46 +15,65 @@ import { UploadCloud, FileText } from "lucide-react";
 import { SquarePen } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
-// --- Helper: update a user in localStorage across all storage keys ---
+// --- Helper: deep merge objects ---
+const deepMerge = (target: any, source: any): any => {
+  const result = { ...target };
+  for (const key in source) {
+    if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+      result[key] = deepMerge(result[key] || {}, source[key]);
+    } else {
+      result[key] = source[key];
+    }
+  }
+  return result;
+};
+
+// --- Helper: update a user in all localStorage arrays ---
 const updateUserInLocalStorage = (
   userId: string,
   updates: Record<string, any>,
 ) => {
   try {
-    // Update in "users" array
+    // Update "users" array
     const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-    const usersIdx = storedUsers.findIndex((u: any) => u.id === userId || u.id === Number(userId) || u.id === String(userId));
-    if (usersIdx !== -1) {
-      storedUsers[usersIdx] = { ...storedUsers[usersIdx], ...updates };
+    const userIdx = storedUsers.findIndex((u: any) => u.id === userId);
+    if (userIdx !== -1) {
+      storedUsers[userIdx] = deepMerge(storedUsers[userIdx], updates);
       localStorage.setItem("users", JSON.stringify(storedUsers));
     }
 
-    // Update in "builders" array (for admin dashboard sync)
+    // Update "builders" array
     const storedBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
-    const buildersIdx = storedBuilders.findIndex((b: any) => b.id === userId || b.id === Number(userId) || b.id === String(userId));
-    if (buildersIdx !== -1) {
-      storedBuilders[buildersIdx] = { ...storedBuilders[buildersIdx], ...updates };
+    const builderIdx = storedBuilders.findIndex((u: any) => u.id === userId);
+    if (builderIdx !== -1) {
+      storedBuilders[builderIdx] = deepMerge(storedBuilders[builderIdx], updates);
       localStorage.setItem("builders", JSON.stringify(storedBuilders));
     }
 
-    // Update in "customers" array (for admin dashboard sync)
+    // Update "customers" array
     const storedCustomers = JSON.parse(localStorage.getItem("customers") || "[]");
-    const customersIdx = storedCustomers.findIndex((c: any) => c.id === userId || c.id === Number(userId) || c.id === String(userId));
-    if (customersIdx !== -1) {
-      storedCustomers[customersIdx] = { ...storedCustomers[customersIdx], ...updates };
+    const customerIdx = storedCustomers.findIndex((u: any) => u.id === userId);
+    if (customerIdx !== -1) {
+      storedCustomers[customerIdx] = deepMerge(storedCustomers[customerIdx], updates);
       localStorage.setItem("customers", JSON.stringify(storedCustomers));
     }
 
-    // Update single "user" key if it matches
+    // Update "user" single object
     const singleUser = JSON.parse(localStorage.getItem("user") || "null");
-    if (singleUser && (singleUser.id === userId || singleUser.id === Number(userId) || singleUser.id === String(userId))) {
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ ...singleUser, ...updates }),
-      );
+    if (singleUser && singleUser.id === userId) {
+      const updatedUser = deepMerge(singleUser, updates);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
+
+    // Update "profile" single object
+    const profileUser = JSON.parse(localStorage.getItem("profile") || "null");
+    if (profileUser && profileUser.id === userId) {
+      const updatedProfile = deepMerge(profileUser, updates);
+      localStorage.setItem("profile", JSON.stringify(updatedProfile));
     }
   } catch (err) {
     console.error("Failed to update user in localStorage:", err);
+    throw err;
   }
 };
 
@@ -888,19 +907,19 @@ const removeCategory = (index: number) => {
   const handleEditSkill = (updatedFields) => {
     setIsSavingInfo(true);
     try {
+      if (!userData?.id) {
+        throw new Error("User ID not found");
+      }
       const profile = userData?.userProfile || {};
-      const updatedProfile = { ...profile, ...updatedFields };
+      const updatedProfile = deepMerge(profile, updatedFields);
       userData.userProfile = updatedProfile;
       updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
       toast.success("Information updated successfully");
-      setInfo((prevInfo) => ({
-        ...prevInfo,
-        ...updatedFields,
-      }));
+      setInfo((prevInfo) => deepMerge(prevInfo, updatedFields));
       setIsEditingFields(false);
     } catch (error) {
       toast.error("Failed to update information");
-      console.error(error);
+      console.error("Edit skill error:", error);
     } finally {
       setIsSavingInfo(false);
       

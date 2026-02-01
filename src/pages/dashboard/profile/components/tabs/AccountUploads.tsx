@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FiDownload, FiEye, FiUpload, FiTrash2, FiCheck, FiX, FiRefreshCw, FiChevronDown } from "react-icons/fi";
 import { FileText, Image, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { getMockUploadsForUserType } from "@/pages/data/mockUploads";
 
 const STORAGE_KEY = "uploads_demo";
 
@@ -43,7 +44,7 @@ const AccountUploads = ({ userData }: { userData: any }) => {
   const userType = userData?.userType?.toLowerCase() || "";
   const accountType = userData?.accountType?.toLowerCase() || "";
 
-  /* -------------------- Load from localStorage -------------------- */
+  /* -------------------- Load documents based on status -------------------- */
   useEffect(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_${userData.id}`);
     if (saved) {
