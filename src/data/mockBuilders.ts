@@ -54,7 +54,6 @@ export interface Builder {
   // Nested profile - null for SIGNED_UP, empty for INCOMPLETE, full for others
   userProfile?: UserProfile | null;
   createdAt: string;
-  userProfile?: UserProfile;
 }
 
 export const STATUS_LABELS: Record<BuilderStatus, string> = {
