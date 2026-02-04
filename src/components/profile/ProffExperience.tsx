@@ -279,9 +279,9 @@ const ProffExperience = () => {
                             </div>
 
                             {!isReadOnly && (
-                                <div className="mt-6 text-center md:text-right">
-                                    <button type="submit" className="w-full md:w-auto bg-blue-800 text-white px-8 py-3 rounded-md hover:bg-blue-900 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled={isSubmitting}>
-                                        {isSubmitting ? "Submitting..." : "Submittingewrr Experience"}
+                                <div className="mt-6">
+                                    <button type="submit" className="w-full sm:w-auto bg-blue-800 text-white px-8 py-3 rounded-lg hover:bg-blue-900 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold" disabled={isSubmitting}>
+                                        {isSubmitting ? "Submitting..." : "Submit Experience"}
                                     </button>
                                 </div>
                             )}

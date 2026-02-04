@@ -10,8 +10,8 @@ import {
   PencilIcon,
   PlusIcon,
 } from "@heroicons/react/24/outline";
-import { UploadCloud, FileText } from "lucide-react";
-
+import { UploadCloud, FileText, CheckCircle } from "lucide-react";
+import { FiCheck } from "react-icons/fi";
 import { SquarePen } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -763,7 +763,7 @@ const removeCategory = (index: number) => {
           {
             name: "yearsOfExperience",
             label: "Years of Experience",
-            options: ["20+ years", "15-20 years", "10-15 years", "5-10 years", "3-5 years", "1-3 years"],
+            options: ["10+ years", "7-10 years", "5-7 years", "3-5 years", "1-3 years", "Less than 1 year"],
           },
         ];
 
@@ -1401,151 +1401,156 @@ const removeCategory = (index: number) => {
       <Toaster position="top-center" richColors />
       <div className="bg-gray-50 min-h-screen w-full">
         <div className="max-w-6xl bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-3xl font-bold mb-8 text-gray-800">
-            {userData?.userType} Experience
-          </h1>
-
-          <form onSubmit={handleEvaluationSubmit} className="space-y-8">
-            {/* Skills Section */}
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {userData?.userType} Information
-                </h2>
+          {/* Header with Approve Button */}
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">
+              {userData?.userType} Experience
+            </h1>
+            <div className="flex items-center gap-3">
+              {userData?.userProfile?.experienceApproved ? (
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                  <FiCheck className="w-4 h-4" />
+                  Experience Approved
+                </span>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setIsEditingFields((prev) => !prev)}
-                  className="focus:outline-none"
-                  disabled={isSavingInfo}
+                  onClick={() => {
+                    const profile = userData?.userProfile || {};
+                    const updatedProfile = {
+                      ...profile,
+                      experienceApproved: true,
+                      experienceApprovedAt: new Date().toISOString(),
+                    };
+                    userData.userProfile = updatedProfile;
+                    updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
+                    toast.success("Experience section has been approved!");
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
                 >
-                  <SquarePen className="h-6 w-6 text-blue-700" />
+                  <FiCheck className="w-4 h-4" />
+                  Approve
                 </button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-                {fields.map((field, index) => (
-                  <div key={index} className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      {field.label}
-                    </label>
-                    <div className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
-                      {userType.toLowerCase() === "contractor" &&
-                      field.name == "experience" ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full table-auto border-collapse text-xs">
-                            <thead>
-                              <tr className="bg-gray-100 text-left text-xs font-semibold text-gray-600">
-                                <th className="px-2 py-2 border">Category</th>
-                                <th className="px-2 py-2 border">Class</th>
-                                <th className="px-2 py-2 border">Years</th>
-                                <th className="px-2 py-2 border">
-                                  Certificate
-                                </th>
-                                <th className="px-2 py-2 border">License</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-  {(userData?.userProfile?.contractorExperiences || []).map(
-    (exp: any, idx: number) => {
-      const safe = (v: any) =>
-        typeof v === "string" || typeof v === "number"
-          ? v
-          : typeof v === "object" && v !== null
-          ? v.name || v.label || v.value || "N/A"
-          : "N/A";
+              )}
+            </div>
+          </div>
 
-      return (
-        <tr key={idx} className="border-b hover:bg-gray-50">
-          <td className="px-2 py-2 border text-xs">
-            {safe(exp?.category)}
-          </td>
-          <td className="px-2 py-2 border text-xs">
-            {safe(exp?.categoryClass)}
-          </td>
-          <td className="px-2 py-2 border text-xs">
-            {safe(exp?.yearsOfExperience)}
-          </td>
-          <td className="px-2 py-2 border text-xs">
-            {exp?.certificate ? (
-              <a
-                href={exp.certificate}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline"
-              >
-                View
-              </a>
-            ) : (
-              "None"
-            )}
-          </td>
-          <td className="px-2 py-2 border text-xs">
-            {exp?.license ? (
-              <a
-                href={exp.license}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline"
-              >
-                View
-              </a>
-            ) : (
-              "None"
-            )}
-          </td>
-        </tr>
-      );
-    }
-  )}
-</tbody>
+          <form onSubmit={handleEvaluationSubmit} className="space-y-8">
+            {/* Skills Section - Card Based Design */}
+            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-800 mb-6">
+                {userData?.userType} Information
+              </h2>
 
-                          </table>
-                        </div>
-                      ) : isEditingFields ? (
-                        <select
-                          value={editingFields[field.name] ?? info[field.name] ?? ""}
-                          onChange={(e) => {
-                            setEditingFields((prev) => ({
-                              ...prev,
-                              [field.name]: e.target.value,
-                            }));
-                          }}
-                          className="w-full p-2 border border-blue-300 rounded-md text-sm"
-                        >
-                          <option value="" disabled>
-                            Select {field.label.toLowerCase()}
-                          </option>
-                          {field.options.map((opt, i) => (
-                            <option key={i} value={opt}>
-                              {opt}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {fields.map((field, index) => {
+                  // Skip contractor experience table - handled in Work Categories section
+                  if (userType.toLowerCase() === "contractor" && field.name === "experience") {
+                    return null;
+                  }
+
+                  const isGradeField = field.name === "grade" || field.name === "professionalLevel";
+                  const fieldValue = typeof info[field.name] === "string" ? info[field.name] : "";
+
+                  return (
+                    <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-sm font-medium text-gray-600">
+                          {field.label}
+                        </label>
+                        {!isEditingFields && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingFields({ ...info });
+                              setIsEditingFields(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 transition"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {isGradeField || field.name === "experience" || field.name === "yearsOfExperience" ? (
+                        // Experience field with dropdown
+                        isEditingFields ? (
+                          <select
+                            value={editingFields[field.name] ?? fieldValue ?? ""}
+                            onChange={(e) => {
+                              setEditingFields((prev) => ({
+                                ...prev,
+                                [field.name]: e.target.value,
+                              }));
+                            }}
+                            className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="" disabled>
+                              Select {field.label.toLowerCase()}
                             </option>
-                          ))}
-                        </select>
+                            {field.options.map((opt, i) => (
+                              <option key={i} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="text-gray-900 font-medium">
+                            {fieldValue || "Not Provided"}
+                          </p>
+                        )
                       ) : (
-                        typeof info[field.name] === "string" ? info[field.name] : "Not Provided"
+                        // Skill/Specialization fields
+                        isEditingFields ? (
+                          <select
+                            value={editingFields[field.name] ?? fieldValue ?? ""}
+                            onChange={(e) => {
+                              setEditingFields((prev) => ({
+                                ...prev,
+                                [field.name]: e.target.value,
+                              }));
+                            }}
+                            className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="" disabled>
+                              Select {field.label.toLowerCase()}
+                            </option>
+                            {field.options.map((opt, i) => (
+                              <option key={i} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="text-gray-900 font-medium">
+                            {fieldValue || "Not Provided"}
+                          </p>
+                        )
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
               {isEditingFields && (
-                <div className="mt-4 flex justify-end gap-2">
+                <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3">
                   <button
                     type="button"
-                    className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium disabled:opacity-50"
+                    onClick={() => setIsEditingFields(false)}
+                    disabled={isSavingInfo}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => {
                       handleEditSkill(editingFields);
                     }}
                     disabled={isSavingInfo}
                   >
-                    {isSavingInfo ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => setIsEditingFields(false)}
-                    disabled={isSavingInfo}
-                  >
-                    Cancel
+                    {isSavingInfo ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               )}
@@ -1591,10 +1596,28 @@ const removeCategory = (index: number) => {
                           <select
                             value={cat.category}
                             onChange={(e) => {
+                              const newCategory = e.target.value;
                               const updated = [...categories];
-                              updated[index].category = e.target.value;
+                              updated[index].category = newCategory;
                               updated[index].specialization = ""; // Reset specialization when category changes
                               setCategories(updated);
+
+                              // Auto-add a project row for this category if not already exists
+                              if (newCategory) {
+                                const projectExists = attachments.some(
+                                  (att) => att.projectName?.toLowerCase().includes(newCategory.toLowerCase())
+                                );
+                                if (!projectExists) {
+                                  const newProject = {
+                                    id: attachments.length + 1,
+                                    projectName: `${newCategory} Project`,
+                                    files: [],
+                                    category: newCategory,
+                                  };
+                                  setAttachments([...attachments, newProject]);
+                                  toast.info(`Project row added for ${newCategory}`);
+                                }
+                              }
                             }}
                             className="w-full p-2 border border-gray-300 rounded-md text-sm"
                           >
@@ -1663,7 +1686,7 @@ const removeCategory = (index: number) => {
                             className="w-full p-2 border border-gray-300 rounded-md text-sm"
                           >
                             <option value="">Select experience</option>
-                            {["20+ years", "15-20 years", "10-15 years", "5-10 years", "3-5 years", "1-3 years"].map((y, i) => (
+                            {["10+ years", "7-10 years", "5-7 years", "3-5 years", "1-3 years", "Less than 1 year"].map((y, i) => (
                               <option key={i} value={y}>{y}</option>
                             ))}
                           </select>
@@ -2216,11 +2239,11 @@ const removeCategory = (index: number) => {
                       )}
                     </div>
 
-                    <div className="mt-6 text-right flex flex-col items-end gap-2">
+                    <div className="mt-6 flex flex-col sm:flex-row sm:justify-end items-stretch sm:items-center gap-2">
                       {
                         <button
                           type="submit"
-                          className="bg-blue-800 text-white px-6 py-2 rounded hover:bg-blue-700 transition disabled:opacity-60"
+                          className="w-full sm:w-auto bg-blue-800 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-60 font-medium"
                           disabled={isSubmitting}
                         >
                           {isSubmitting ? "Submitting..." : "Submit Evaluation"}
@@ -2492,59 +2515,6 @@ const removeCategory = (index: number) => {
               </div>
             )}
 
-            <div className="mt-6 text-right">
-              <div className="relative inline-block">
-                {/* Show Verify Button only if not admin approved, profile is complete, and status allows verification */}
-                {!userData?.adminApproved &&
-                  !userData?.approved &&
-                  userData?.userProfile?.complete &&
-                  PREFILL_STATUSES.includes(status) && (
-                    <button
-                      type="button"
-                      onClick={handleVerify}
-                      className="bg-blue-800 text-white px-6 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={isVerifying}
-                    >
-                      {isVerifying ? "Verifying..." : "Verify"}
-                    </button>
-                  )}
-
-                {/* Show message for incomplete accounts */}
-                {(status === "SIGNED_UP" || status === "INCOMPLETE") && (
-                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                    Account incomplete - Cannot verify
-                  </span>
-                )}
-
-                {/* Show Verified Badge if admin approved */}
-                {userData?.adminApproved && (
-                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                    ✅ Verified
-                  </span>
-                )}
-
-                {/* Legacy verification status (keep for backward compatibility) */}
-                {!userData?.adminApproved && userData?.approved && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 ml-4">
-                    Verified
-                  </span>
-                )}
-
-                {/* Verified Message */}
-                {showVerificationMessage && (
-                  <div className="absolute top-full right-0 mt-2 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center justify-between gap-4 min-w-[200px]">
-                    <span>Verified</span>
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="text-sm underline hover:text-gray-100"
-                    >
-                      Close
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
           </form>
         </div>
       </div>

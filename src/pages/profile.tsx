@@ -92,7 +92,7 @@ function ProfilePage() {
                 <div className="container mx-auto flex items-center justify-between">
                     {/* Welcome Message */}
                     <h1 className="text-xl font-bold text-gray-800 sm:text-2xl md:text-3xl">
-                        Welcome, {user?.firstName}!
+                        Welcome, {user?.organizationName || user?.firstName || user?.contactFullName || "User"}!
                     </h1>
 
                     {/* Styled Logout Button */}
