@@ -300,8 +300,8 @@ const FundiExperience = () => {
           </div>
 
           {!isReadOnly && (
-            <div className="mt-6 pt-4 text-right border-t">
-              <button type="submit" disabled={isSubmitting} className="bg-blue-800 text-white px-8 py-3 rounded-md hover:bg-blue-900 transition disabled:opacity-50 font-semibold">
+            <div className="mt-6 pt-4 border-t">
+              <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto bg-blue-800 text-white px-8 py-3 rounded-lg hover:bg-blue-900 transition disabled:opacity-50 font-semibold">
                 {isSubmitting ? "Submitting..." : "Submit Experience"}
               </button>
             </div>

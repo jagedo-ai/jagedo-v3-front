@@ -1,40 +1,94 @@
-import { Download, FileText, Upload } from "lucide-react";
+import { Download, FileText, Upload, Eye, Image } from "lucide-react";
 import { useGlobalContext } from "@/context/GlobalProvider";
 import { MOCK_UPLOADS } from "@/pages/mockUploads";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-const DocumentRow = ({ label, url, onReplace }) => {
+const DocumentCard = ({ label, url, onReplace }) => {
   const fileName = url?.split("/").pop();
 
-  return (
-    <div className="space-y-2 mb-4">
-      <label className="block text-sm font-medium">{label}</label>
-
-      {url ? (
-        <div className="p-3 bg-white border border-gray-300 rounded-lg shadow-sm text-sm flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <FileText size={18} />
-            <span className="truncate max-w-xs">{fileName}</span>
+  if (!url) {
+    // Empty state - needs upload
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+            <Image className="w-5 h-5 text-gray-400" />
           </div>
-
-          <div className="flex items-center gap-3">
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              <Download size={18} />
-            </a>
-            <label className="cursor-pointer text-green-600">
-              <Upload size={18} />
-              <input type="file" hidden onChange={e => onReplace(e.target.files[0])} />
-            </label>
+          <div className="flex-1">
+            <h4 className="font-medium text-gray-900 text-sm">{label}</h4>
+            <p className="text-xs text-gray-500">Not uploaded</p>
           </div>
         </div>
-      ) : (
-        <label className="flex items-center gap-3 p-3 bg-gray-100 border rounded-lg cursor-pointer">
-          <Upload size={18} />
-          Upload document
-          <input type="file" hidden onChange={e => onReplace(e.target.files[0])} />
+        <div className="flex gap-2">
+          <label className="flex-1 cursor-pointer">
+            <div className="flex items-center justify-center gap-2 py-2 px-4 border border-dashed border-blue-300 rounded-lg bg-blue-50 text-blue-600 text-sm font-medium hover:bg-blue-100 transition">
+              <Upload className="w-4 h-4" />
+              Upload
+            </div>
+            <input
+              type="file"
+              className="hidden"
+              accept="image/*,.pdf"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onReplace(file);
+              }}
+            />
+          </label>
+        </div>
+      </div>
+    );
+  }
+
+  // Uploaded state
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+          <FileText className="w-5 h-5 text-green-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-gray-900 text-sm">{label}</h4>
+          <p className="text-xs text-gray-500 truncate">{fileName}</p>
+        </div>
+      </div>
+
+      {/* Action buttons - View, Download, Replace */}
+      <div className="flex gap-2 flex-wrap">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-1 py-2 px-2 border border-gray-200 rounded-lg text-gray-700 text-xs font-medium hover:bg-gray-50 transition"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          View
+        </a>
+        <a
+          href={url}
+          download={fileName}
+          className="flex-1 flex items-center justify-center gap-1 py-2 px-2 border border-gray-200 rounded-lg text-gray-700 text-xs font-medium hover:bg-gray-50 transition"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Download
+        </a>
+        <label className="flex-1 cursor-pointer">
+          <div className="flex items-center justify-center gap-1 py-2 px-2 border border-blue-200 rounded-lg text-blue-600 text-xs font-medium hover:bg-blue-50 transition">
+            <Upload className="w-3.5 h-3.5" />
+            Replace
+          </div>
+          <input
+            type="file"
+            className="hidden"
+            accept="image/*,.pdf"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onReplace(file);
+            }}
+          />
         </label>
-      )}
+      </div>
     </div>
   );
 };
@@ -108,23 +162,38 @@ const AccountUploads = () => {
     const fields = defaultFields[userType] || [];
 
     return (
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-8">
-        <h2 className="text-2xl font-bold mb-6">Documents</h2>
-        {fields.map(f => (
-          <DocumentRow
-            key={f.key}
-            label={f.label}
-            url={documents[f.key]}
-            onReplace={file => replaceDocument(file, f.key)}
-          />
-        ))}
-        <div className="flex justify-end mt-8">
-          <button
-            onClick={handleSaveDocuments}
-            className="bg-blue-800 text-white px-8 py-3 rounded-md hover:bg-blue-900 transition font-semibold"
-          >
-            Save
-          </button>
+      <div className="min-h-screen bg-gray-50">
+        <div className="p-6 lg:p-8">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Uploaded Documents</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                ID documents, certificates, and portfolio items
+              </p>
+            </div>
+
+            {/* Document Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+              {fields.map(f => (
+                <DocumentCard
+                  key={f.key}
+                  label={f.label}
+                  url={documents[f.key]}
+                  onReplace={file => replaceDocument(file, f.key)}
+                />
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleSaveDocuments}
+                className="bg-blue-800 text-white px-8 py-3 rounded-md hover:bg-blue-900 transition font-semibold"
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -201,60 +270,77 @@ const AccountUploads = () => {
   ];
 
   return (
-    <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-8">
-      <h2 className="text-2xl font-bold mb-6">Contractor Documents</h2>
+    <div className="min-h-screen bg-gray-50">
+      <div className="p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Contractor Documents</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Company documents, certificates, and licenses
+            </p>
+          </div>
 
-      {/* Section 1 */}
-      <h3 className="text-lg font-semibold mb-4">Company Documents</h3>
-      {generalFields.map(f => (
-        <DocumentRow
-          key={f.key}
-          label={f.label}
-          url={documents[f.key]}
-          onReplace={file => replaceDocument(file, f.key)}
-        />
-      ))}
+          {/* Section 1 - Company Documents */}
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold text-gray-600 mb-4">Company Documents</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {generalFields.map(f => (
+                <DocumentCard
+                  key={f.key}
+                  label={f.label}
+                  url={documents[f.key]}
+                  onReplace={file => replaceDocument(file, f.key)}
+                />
+              ))}
+            </div>
+          </div>
 
-      {/* Section 2 */}
-      <h3 className="text-lg font-semibold mt-10 mb-4">
-        Category Licences & Certificates
-      </h3>
+          {/* Section 2 - Category Documents */}
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold text-gray-600 mb-4">
+              Category Licences & Certificates
+            </h3>
 
-      {categories.length === 0 && (
-        <p className="text-sm text-gray-500">
-          Add categories in Experience section to unlock uploads.
-        </p>
-      )}
+            {categories.length === 0 && (
+              <p className="text-sm text-gray-500">
+                Add categories in Experience section to unlock uploads.
+              </p>
+            )}
 
-      {categories.map(cat => (
-        <div key={cat} className="border rounded-lg p-5 mb-6 bg-gray-50">
-          <h4 className="font-semibold mb-4">{cat}</h4>
+            {categories.map(cat => (
+              <div key={cat} className="border rounded-xl p-5 mb-6 bg-white">
+                <h4 className="font-semibold mb-4 text-gray-800">{cat}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <DocumentCard
+                    label={`${cat} Certificate`}
+                    url={categoryDocs?.[cat]?.certificate}
+                    onReplace={file =>
+                      replaceCategoryDoc(cat, "certificate", file)
+                    }
+                  />
 
-          <DocumentRow
-            label={`${cat} Certificate`}
-            url={categoryDocs?.[cat]?.certificate}
-            onReplace={file =>
-              replaceCategoryDoc(cat, "certificate", file)
-            }
-          />
+                  <DocumentCard
+                    label={`${cat} Practice License`}
+                    url={categoryDocs?.[cat]?.license}
+                    onReplace={file =>
+                      replaceCategoryDoc(cat, "license", file)
+                    }
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
 
-          <DocumentRow
-            label={`${cat} Practice License`}
-            url={categoryDocs?.[cat]?.license}
-            onReplace={file =>
-              replaceCategoryDoc(cat, "license", file)
-            }
-          />
+          <div className="flex justify-end">
+            <button
+              onClick={handleSaveDocuments}
+              className="bg-blue-800 text-white px-8 py-3 rounded-md hover:bg-blue-900 transition font-semibold"
+            >
+              Save
+            </button>
+          </div>
         </div>
-      ))}
-
-      <div className="flex justify-end mt-8">
-        <button
-          onClick={handleSaveDocuments}
-          className="bg-blue-800 text-white px-8 py-3 rounded-md hover:bg-blue-900 transition font-semibold"
-        >
-          Save
-        </button>
       </div>
     </div>
   );

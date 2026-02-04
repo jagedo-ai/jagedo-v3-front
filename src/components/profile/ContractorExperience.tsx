@@ -491,8 +491,8 @@ const handleCategoryChange = (id: string, value: string) => {
       </div>
 
             {!isReadOnly && (
-              <div className="mt-6 pt-4 text-center md:text-right border-t">
-                <button type="submit" disabled={isSubmitting} className="w-full md:w-auto bg-blue-800 text-white px-8 py-3 rounded-md hover:bg-blue-900 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+              <div className="mt-6 pt-4 border-t">
+                <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto bg-blue-800 text-white px-8 py-3 rounded-lg hover:bg-blue-900 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
                   {isSubmitting ? "Submitting..." : "Submit Experience"}
                 </button>
               </div>
