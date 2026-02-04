@@ -28,28 +28,48 @@ function AccountInfo() {
       localStorage.removeItem("profile");
     }
 
-    if (stored) {
+    // Build profile from user data
+    const userProfile = user ? {
+      name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      email: user.username || user.email || "",
+      phone: user.phone || "",
+      userType: user.userType,
+      type: user.profileType || user.accountType,
+      // Organization fields - check multiple possible field names
+      organizationName: user.organizationName || "",
+      contactPerson: user.contactFullName || user.contactPerson || "",
+    } : null;
+
+    if (stored && userProfile) {
+      // Merge stored profile with user data, preferring user data for org fields if stored is empty
+      const mergedProfile = {
+        ...stored,
+        userType: userProfile.userType || stored.userType,
+        type: userProfile.type || stored.type,
+        organizationName: stored.organizationName || userProfile.organizationName,
+        contactPerson: stored.contactPerson || userProfile.contactPerson,
+        name: stored.name || userProfile.name,
+      };
+      setProfile(mergedProfile);
+      setPhoneValue(mergedProfile.phone || "");
+      setEmailValue(mergedProfile.email || "");
+      if (mergedProfile.avatar) {
+        setImageSrc(mergedProfile.avatar);
+      }
+      // Update stored profile with merged data
+      localStorage.setItem("profile", JSON.stringify(mergedProfile));
+    } else if (stored) {
       setProfile(stored);
       setPhoneValue(stored.phone || "");
       setEmailValue(stored.email || "");
-      // Load persisted image if it exists
       if (stored.avatar) {
         setImageSrc(stored.avatar);
       }
-    } else if (user) {
-      // fallback to real logged-in user
-      const initialProfile = {
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.username || user.email || "",
-        phone: user.phone || "",
-        userType: user.userType,
-        type: user.profileType || user.accountType,
-      };
-
-      setProfile(initialProfile);
-      setPhoneValue(initialProfile.phone);
-      setEmailValue(initialProfile.email);
-      localStorage.setItem("profile", JSON.stringify(initialProfile));
+    } else if (userProfile) {
+      setProfile(userProfile);
+      setPhoneValue(userProfile.phone);
+      setEmailValue(userProfile.email);
+      localStorage.setItem("profile", JSON.stringify(userProfile));
     }
   }, [user]);
 
@@ -160,18 +180,18 @@ function AccountInfo() {
         />
       </div>
 
-      {/* ORGANIZATION USERS */}
-      {(role === "contractor" ||
-        (role === "customer" && profile.type === "organization")) && (
+      {/* ORGANIZATION USERS - Contractors, Hardware, and Organization-type customers */}
+      {(role === "contractor" || role === "hardware" ||
+        (role === "customer" && (profile.type === "organization" || profile.type === "ORGANIZATION"))) && (
         <>
           <Field label="Organization Name" value={profile.organizationName} />
           <Field label="Contact Person" value={profile.contactPerson} />
         </>
       )}
 
-      {/* NORMAL USERS */}
+      {/* INDIVIDUAL USERS - Fundi, Professional, and Individual-type customers */}
       {!(role === "contractor" || role === "hardware" ||
-        (role === "customer" && profile.type === "organization")) && (
+        (role === "customer" && (profile.type === "organization" || profile.type === "ORGANIZATION"))) && (
         <Field label="Name" value={profile.name} />
       )}
 
