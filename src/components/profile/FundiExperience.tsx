@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { XMarkIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { useGlobalContext } from "@/context/GlobalProvider";
+
 
 interface FundiAttachment {
   id: number;
@@ -51,6 +53,8 @@ const prefilledAttachments: FundiAttachment[] = [
 ];
 
 const FundiExperience = () => {
+  const { user, setUser } = useGlobalContext();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [attachments, setAttachments] = useState<FundiAttachment[]>(prefilledAttachments);
@@ -122,9 +126,23 @@ useEffect(() => {
       return toast.error(`Please add ${required} complete project(s).`);
     }
 
-    saveToStorage({ grade, experience, specialization, attachments });
-    toast.success("Experience saved locally!");
-    setIsSubmitting(false);
+   saveToStorage({ grade, experience, specialization, attachments });
+
+setUser((prev: any) => ({
+  ...prev,
+  userProfile: {
+    ...prev.userProfile,
+    grade,
+    experience,
+    previousJobPhotoUrls: attachments.flatMap(a => a.files),
+  },
+}));
+
+window.dispatchEvent(new Event("storage"));
+
+toast.success("Experience saved!");
+setIsSubmitting(false);
+
   };
 
   if (isLoadingProfile) return <div className="p-8 text-center">Loading...</div>;

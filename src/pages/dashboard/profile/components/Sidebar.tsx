@@ -160,13 +160,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, com
                     {isOptional && <span className="text-xs text-gray-400 ml-1">(Optional)</span>}
                   </span>
 
-                  {!isOptional && (
-                    isComplete ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                    )
-                  )}
+             {!isOptional && (
+  // For experience and uploads, show text instead of icons
+  (item.id === 'experience' || item.id === 'account-uploads') ? (
+    <span className={`ml-auto font-semibold ${isComplete ? 'text-green-600' : 'text-red-600'}`}>
+      {isComplete ? 'Complete' : 'Incomplete'}
+    </span>
+  ) : (
+    // For all other items, keep the original icons
+    isComplete ? (
+      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+    ) : (
+      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+    )
+  )
+)}
+
                 </button>
               </li>
             );

@@ -121,16 +121,21 @@ const AccountUploads = () => {
       // ✅ DON'T trigger status update here - wait for Save button click
     };
 
-    const handleSaveDocuments = () => {
-      // Save documents to localStorage
-      localStorage.setItem(`docs-${userType}`, JSON.stringify(documents));
-      localStorage.setItem(`uploads_demo_${user?.id}`, JSON.stringify(documents));
-      
-      // Trigger completion status update
-      window.dispatchEvent(new Event('storage'));
-      
-      toast.success('Uploads saved successfully');
-    };
+const handleSaveDocuments = () => {
+  // 1️⃣ Get current uploads
+  const uploads = documents;
+
+  // 2️⃣ Save them where sidebar expects
+  localStorage.setItem(
+    `uploads_demo_${user?.id}`,
+    JSON.stringify(uploads)
+  );
+
+  // 3️⃣ Tell sidebar to re-check status
+  window.dispatchEvent(new Event('storage'));
+
+  toast.success("Uploads saved");
+};
 
     const defaultFields = {
       customer: [
@@ -139,16 +144,16 @@ const AccountUploads = () => {
         { label: "KRA PIN", key: "kraPIN" },
       ],
       fundi: [
-        { label: "ID Front", key: "idFrontUrl" },
-        { label: "ID Back", key: "idBackUrl" },
-        { label: "Certificate", key: "certificateUrl" },
+        { label: "ID Front", key: "idFront" },
+        { label: "ID Back", key: "idBack" },
+        { label: "Certificate", key: "certificate" },
         { label: "KRA PIN", key: "kraPIN" },
       ],
       professional: [
-        { label: "ID Front", key: "idFrontUrl" },
-        { label: "ID Back", key: "idBackUrl" },
-        { label: "Academics Certificate", key: "academicCertificateUrl" },
-        { label: "CV", key: "cvUrl" },
+        { label: "ID Front", key: "idFront" },
+        { label: "ID Back", key: "idBack" },
+        { label: "Academics Certificate", key: "academicCertificate" },
+        { label: "CV", key: "cv" },
         { label: "KRA PIN", key: "kraPIN" },
       ],
       hardware: [
