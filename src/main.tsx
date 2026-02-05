@@ -12,10 +12,12 @@ import {
 
 const queryClient = new QueryClient();
 
+// Use a placeholder if GOOGLE_CLIENT_ID is not set to prevent provider from crashing
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'placeholder-client-id';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+    <GoogleOAuthProvider clientId={googleClientId}>
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>

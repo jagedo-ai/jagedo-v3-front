@@ -5,21 +5,31 @@ import { counties } from "@/pages/data/counties";
 import { getUserAddress, updateUserAddress } from "@/api/fakeAddress.api";
 import { getAllCountries } from "@/api/countries.api";
 
-const getInitialAddress = (userId: number) => {
+const getInitialAddress = (userId: number | string, userData?: any) => {
   const saved = getUserAddress(userId);
-  return (
-    saved || {
-      country: "",
-      county: "",
-      subCounty: "",
-      estate: "",
-    }
-  );
+  if (saved) return saved;
+
+  // Fallback to userData if available
+  if (userData && (userData.country || userData.county)) {
+    return {
+      country: userData.country || "",
+      county: userData.county || "",
+      subCounty: userData.subCounty || "",
+      estate: userData.estate || userData.town || userData.village || "",
+    };
+  }
+
+  return {
+    country: "",
+    county: "",
+    subCounty: "",
+    estate: "",
+  };
 };
 
 const Address = ({ userData }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [address, setAddress] = useState(getInitialAddress(userData.id));
+  const [address, setAddress] = useState(getInitialAddress(userData.id, userData));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [countriesList, setCountriesList] = useState<any[]>([]);
@@ -37,8 +47,8 @@ const Address = ({ userData }) => {
   }, []);
 
   useEffect(() => {
-    setAddress(getInitialAddress(userData.id));
-  }, [userData.id]);
+    setAddress(getInitialAddress(userData.id, userData));
+  }, [userData.id, userData]);
 
   const countyList =
     address.country?.toLowerCase() === "kenya" ? Object.keys(counties) : [];
@@ -73,7 +83,7 @@ const Address = ({ userData }) => {
   };
 
   const handleCancel = () => {
-    setAddress(getInitialAddress(userData.id));
+    setAddress(getInitialAddress(userData.id, userData));
     setIsEditing(false);
   };
 

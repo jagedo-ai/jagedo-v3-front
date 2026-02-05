@@ -12,8 +12,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast, Toaster } from "sonner"
 import { verifyOtp } from "@/api/auth.api"
-import { getAllCountries } from "@/api/countries.api";
-import { counties } from "@/pages/data/counties"
 import GoogleSignIn from "@/components/GoogleSignIn";
 import { getPasswordStrength } from "./PasswordStrength";
 interface CustomerSignupFormProps {
@@ -49,13 +47,6 @@ export function CustomerSignupForm({
   const [timerActive, setTimerActive] = useState(false);
   const [hasInitialOtpBeenSent, setHasInitialOtpBeenSent] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
-  const [countries, setCountries] = useState<any[]>([]);
-  const [isLoadingCountries, setIsLoadingCountries] = useState(true);
-
-  // const countyList =
-  //   formData.country.toLowerCase() == "kenya" ? Object.keys(counties) : [];
-
-  // const subCountyList = (formData.country.toLowerCase() == "kenya" && formData.county) ? counties[formData.county as keyof typeof counties] || [] : [];
 
   // OTP timer countdown effect
   useEffect(() => {
@@ -95,22 +86,6 @@ export function CustomerSignupForm({
       }, 1000);
     }
 
-    // Fetch countries on mount
-    const fetchCountries = async () => {
-      try {
-        const data = await getAllCountries(); // Assuming getAllCountries is self-contained
-        //@ts-ignore
-        setCountries(data.hashSet);
-      } catch (error) {
-        console.error("Failed to fetch countries:", error);
-        toast.error("Could not load country list.");
-      } finally {
-        setIsLoadingCountries(false);
-      }
-    };
-
-    fetchCountries();
-
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -137,18 +112,19 @@ export function CustomerSignupForm({
     const newErrors: Record<string, string> = {}
 
     switch (currentStep) {
-      case 1:
-        if (!formData.accountType) {
-          newErrors.accountType = "Please select an account type"
-        }
-        break
-      case 2:
-        if (!formData.email) {
-          newErrors.email = "Email is required"
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-          newErrors.email = "Please enter a valid email address"
-        }
-        break
+  case 1:
+    if (!formData.accountType) {
+      newErrors.accountType = "Please select an account type"
+    }
+    break; // <-- ADD THIS break so we don't fall-through to case 2
+
+  case 2:
+    if (!formData.email) {
+      newErrors.email = "Email is required"
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address"
+    }
+    break
       case 3:
         if (!formData.phone) {
           newErrors.phone = "Phone number is required"
@@ -705,7 +681,6 @@ export function CustomerSignupForm({
             </div>
           </div>
         )
-
       // case 6:
       //   if (formData.accountType === "INDIVIDUAL") {
       //     return (
@@ -982,6 +957,7 @@ export function CustomerSignupForm({
 
   //const isLastStep = currentStep === 8;
   const isLastStep = currentStep === 6;
+
 
   return (
     <form

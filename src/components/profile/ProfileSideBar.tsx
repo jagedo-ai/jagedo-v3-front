@@ -22,7 +22,7 @@ import { useNavigate } from "react-router-dom";
 function ProfileSide({ activeComponent, setActiveComponent, user }) {
   const navigate = useNavigate();
 
-  // ✅ NEW: Force re-render when storage changes (status update fix)
+  // ✅ Force re-render when storage changes (status update fix)
   const [rerender, setRerender] = useState(0);
   
   useEffect(() => {
@@ -31,10 +31,14 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
       setRerender(prev => prev + 1); // Force re-calculate completionStatus
     };
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('localStorageUpdate', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localStorageUpdate', handleStorageChange);
+    };
   }, []);
 
-  // ✅ NEW: Calculate completion status for each section
+  // ✅ Calculate completion status for each section
   const completionStatus = useMemo((): { [key: string]: 'complete' | 'incomplete' } => {
     // rerender is a dependency so this recalculates when storage changes
     console.log('Recalculating completion status', rerender);
@@ -59,10 +63,10 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
       }
       const docMap: any = {
         customer: ['businessPermit', 'certificateOfIncorporation', 'kraPIN'],
-        fundi: ['idFrontUrl', 'idBackUrl', 'certificateUrl', 'kraPIN'],
-        professional: ['idFrontUrl', 'idBackUrl', 'academicCertificateUrl', 'cvUrl', 'kraPIN'],
+        fundi: ['idFront', 'idBack', 'certificate', 'kraPIN'],
+        professional: ['idFront', 'idBack', 'academicCertificate', 'cv', 'kraPIN', 'practiceLicense'],
         contractor: ['businessRegistration', 'businessPermit', 'kraPIN', 'companyProfile'],
-        hardware: ['businessRegistration', 'kraPIN', 'singleBusinessPermit', 'companyProfile'],
+        hardware: ['certificateOfIncorporation', 'kraPIN', 'singleBusinessPermit', 'companyProfile'],
       };
       return docMap[userType] || [];
     };
@@ -70,16 +74,38 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
     const uploadedDocs = JSON.parse(localStorage.getItem(`uploads_demo_${user?.id}`) || '{}');
     console.log('Uploaded docs:', uploadedDocs);
     const requiredDocs = getRequiredDocuments();
-    const uploadsComplete = requiredDocs.length === 0 || requiredDocs.every(doc => uploadedDocs[doc]);
+    
+    // Check if ALL required documents exist and have truthy values
+    const uploadsComplete = requiredDocs.length > 0 && requiredDocs.every(doc => {
+      const value = uploadedDocs[doc];
+      return value && value !== '' && value !== null && value !== undefined;
+    });
+    
     console.log('Uploads complete:', uploadsComplete, 'Required:', requiredDocs, 'Uploaded:', uploadedDocs);
 
     // Check Experience completion
     let experienceComplete = false;
     if (userType !== 'customer' && userType !== 'hardware') {
-      const hasGrade = user?.userProfile?.grade;
-      const hasExperience = user?.userProfile?.experience;
-      const hasProjects = user?.userProfile?.previousJobPhotoUrls && user.userProfile.previousJobPhotoUrls.length > 0;
-      experienceComplete = hasGrade && hasExperience && hasProjects;
+      const profile = user?.userProfile || {};
+      
+      if (userType === 'fundi') {
+        const hasGrade = !!profile.grade;
+        const hasExperience = !!profile.experience;
+        const hasProjects = profile.previousJobPhotoUrls?.length > 0;
+        experienceComplete = hasGrade && hasExperience && hasProjects;
+      } else if (userType === 'professional') {
+        const hasProfession = !!profile.profession;
+        const hasLevel = !!profile.professionalLevel;
+        const hasYears = !!profile.yearsOfExperience;
+        const hasProjects = profile.professionalProjects?.length > 0;
+        experienceComplete = hasProfession && hasLevel && hasYears && hasProjects;
+      } else if (userType === 'contractor') {
+        const hasType = !!profile.contractorType;
+        const hasLevel = !!profile.licenseLevel;
+        const hasExperience = !!profile.contractorExperiences;
+        const hasProjects = profile.contractorProjects?.length > 0;
+        experienceComplete = hasType && hasLevel && hasExperience && hasProjects;
+      }
     } else {
       experienceComplete = true;
     }
@@ -112,7 +138,7 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
     },
     {
       id: "Account Uploads",
-      label: "Account Uploads",
+      label: "Uploads",
       icon: <FaBoxes className="h-5 w-5 text-purple-600" />,
     },
   ];
@@ -139,8 +165,8 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
     const isActive = activeComponent === item.id;
     const status = completionStatus[item.id] || 'incomplete';
     const isComplete = status === 'complete';
-    // ✅ Don't show status for Activities
-    const showStatus = item.id !== 'Activities';
+    // ✅ Don't show status for Activities and Products
+    const showStatus = item.id !== 'Activities' && item.id !== 'Products';
     
     return (
       <ListItem
@@ -154,14 +180,29 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
       >
         <ListItemPrefix>{item.icon}</ListItemPrefix>
         <span className="hidden sm:inline whitespace-nowrap">{item.label}</span>
-        {/* ✅ Status label - only for items that need it */}
-        {showStatus && (
-          <span className={`hidden sm:inline ml-auto text-xs font-semibold ${
-            isComplete ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {isComplete ? 'Complete' : 'Incomplete'}
-          </span>
-        )}
+  {/* ✅ Status TEXT for Uploads & Experience, icons for others */}
+{showStatus && (
+  <span className="hidden sm:inline ml-auto">
+    {(item.id === "Account Uploads" || item.id === "Experience") ? (
+      <span
+        className={`text-xs font-semibold px-2 py-1 rounded-full ${
+          isComplete
+            ? "text-green-700 bg-green-100"
+            : "text-red-700 bg-red-100"
+        }`}
+      >
+        {isComplete ? "Complete" : "Incomplete"}
+      </span>
+    ) : (
+      isComplete ? (
+        <CheckCircle2 className="h-5 w-5 text-green-600" />
+      ) : (
+        <AlertCircle className="h-5 w-5 text-red-600" />
+      )
+    )}
+  </span>
+)}
+
       </ListItem>
     );
   };

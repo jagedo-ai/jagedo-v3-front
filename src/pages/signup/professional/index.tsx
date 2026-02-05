@@ -138,45 +138,71 @@ export default function ProfessionalSignup() {
     //     }
     // };
     const handleSubmit = async () => {
-        // 1. Prepare the user object
+        // Generate a unique ID starting from 1000 to avoid conflicts with mock data (IDs 1-24)
+        const existingBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
+        const existingUsers = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
+
+        const maxBuilderId = existingBuilders.reduce((max: number, b: any) => {
+            const id = typeof b.id === 'number' ? b.id : parseInt(b.id) || 0;
+            return id > max ? id : max;
+        }, 999);
+        const newId = maxBuilderId + 1;
+
+        // 1. Prepare the user object for mock_users_db
         const newUser = {
-            id: crypto.randomUUID(),
+            id: newId.toString(),
             email: formData.email,
             password: formData.password,
             userType: "PROFESSIONAL",
-            firstName: formData.firstName || "",
-            lastName: formData.lastName || "",
+            firstName: "",
+            lastName: "",
             accountType: formData.accountType,
             phone: formData.phone,
-            profileCompleted: false
-        }
-        try {
-            // 2. mock db save
-            const exisitingUsers = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
+            phoneNumber: `+254${formData.phone}`,
+            profileCompleted: false,
+            status: "SIGNED_UP"
+        };
 
-            if (exisitingUsers.find((u: any) => u.email === newUser.email)) {
+        // 2. Prepare the builder object for builders array
+        const newBuilder = {
+            id: newId,
+            userType: "PROFESSIONAL" as const,
+            email: formData.email,
+            phoneNumber: `+254${formData.phone}`,
+            profession: formData.profession || "",
+            accountType: formData.accountType === "ORGANIZATION" ? "business" : "individual",
+            adminApproved: false,
+            status: "SIGNED_UP" as const,
+            createdAt: new Date().toISOString(),
+            firstName: undefined,
+            lastName: undefined,
+            organizationName: undefined,
+            county: undefined,
+            subCounty: undefined,
+            userProfile: null
+        };
+
+        try {
+            if (existingUsers.find((u: any) => u.email === newUser.email)) {
                 toast.error("User with this email already exists!");
                 return;
             }
-            exisitingUsers.push(newUser);
-            localStorage.setItem("mock_users_db", JSON.stringify(exisitingUsers));
+            if (existingBuilders.find((b: any) => b.email === newUser.email)) {
+                toast.error("User with this email already exists!");
+                return;
+            }
+
+            existingUsers.push(newUser);
+            localStorage.setItem("mock_users_db", JSON.stringify(existingUsers));
+
+            existingBuilders.push(newBuilder);
+            localStorage.setItem("builders", JSON.stringify(existingBuilders));
+
             localStorage.setItem("otpDeliveryMethod", formData.otpMethod);
 
-           // 3. successs message and redirect
-            const response = {
-                data: {
-                    success: true,
-                    user: newUser,
-                    accessToken: "mock_access_token_" + newUser.id
-                }
-            };
-
-            // 4. Show Profile Completion Modal
-             if (response.data.success) {
-                toast.success("Account created successfully. Please complete your profile.");
-                setRegisteredUser(newUser);
-                setShowProfileCompletionModal(true);
-             }
+            toast.success("Account created successfully. Please complete your profile.");
+            setRegisteredUser({ ...newUser, builderId: newId });
+            setShowProfileCompletionModal(true);
 
         } catch (error: any) {
             toast.error("An error occurred during mock registration");
@@ -184,17 +210,55 @@ export default function ProfessionalSignup() {
     };
 
     const handleProfileComplete = (profileData: any) => {
+        const builderId = registeredUser?.builderId || registeredUser?.id;
+
         const updatedUser = {
             ...registeredUser,
             ...profileData,
-            profileCompleted: true
+            firstName: profileData.firstName || "",
+            lastName: profileData.lastName || "",
+            organizationName: profileData.organizationName || "",
+            profileCompleted: true,
+            status: "INCOMPLETE"
         };
+
         const existingUsers = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
         const userIndex = existingUsers.findIndex((u: any) => u.email === updatedUser.email);
         if (userIndex !== -1) {
             existingUsers[userIndex] = updatedUser;
             localStorage.setItem("mock_users_db", JSON.stringify(existingUsers));
         }
+
+        const existingBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
+        const builderIndex = existingBuilders.findIndex((b: any) =>
+            b.id === builderId || b.id === parseInt(builderId) || b.email === updatedUser.email
+        );
+        if (builderIndex !== -1) {
+            existingBuilders[builderIndex] = {
+                ...existingBuilders[builderIndex],
+                firstName: profileData.firstName || undefined,
+                lastName: profileData.lastName || undefined,
+                organizationName: profileData.organizationName || undefined,
+                county: profileData.county || undefined,
+                subCounty: profileData.subCounty || undefined,
+                village: profileData.estate || undefined,
+                status: "INCOMPLETE",
+                userProfile: {
+                    profession: formData.profession || "",
+                }
+            };
+            localStorage.setItem("builders", JSON.stringify(existingBuilders));
+        }
+
+        // Save address to user-specific key for profile page
+        const addressData = {
+            country: profileData.country || "Kenya",
+            county: profileData.county || "",
+            subCounty: profileData.subCounty || "",
+            estate: profileData.estate || profileData.town || "",
+        };
+        localStorage.setItem(`address_${updatedUser.id}`, JSON.stringify(addressData));
+
         localStorage.setItem("user", JSON.stringify(updatedUser));
         localStorage.setItem("token", "mock_access_token_" + updatedUser.id);
         setUser(updatedUser);
