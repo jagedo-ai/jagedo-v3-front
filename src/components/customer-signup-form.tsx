@@ -1,10 +1,5 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react"
 import { Eye, EyeOff, Mail, Phone, Loader2, Check } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,9 +7,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast, Toaster } from "sonner"
 import { verifyOtp } from "@/api/auth.api"
-import { getAllCountries } from "@/api/countries.api";
-import { counties } from "@/pages/data/counties"
 import GoogleSignIn from "@/components/GoogleSignIn";
+import { cn } from "@/lib/utils";
 import { getPasswordStrength } from "./PasswordStrength";
 interface CustomerSignupFormProps {
   currentStep: number
@@ -26,8 +20,6 @@ interface CustomerSignupFormProps {
   handleInitiateRegistration: () => Promise<void>
   handleResendOtp: () => Promise<void>
 }
-
-
 
 export function CustomerSignupForm({
   currentStep,
@@ -45,18 +37,12 @@ export function CustomerSignupForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [isOtpVerified, setIsOtpVerified] = useState(false)
-  const [otpTimer, setOtpTimer] = useState(0); // seconds remaining
+  const [otpTimer, setOtpTimer] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [hasInitialOtpBeenSent, setHasInitialOtpBeenSent] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
-  const [countries, setCountries] = useState<any[]>([]);
-  const [isLoadingCountries, setIsLoadingCountries] = useState(true);
 
-  // Local search states (added)
-  const [countrySearch, setCountrySearch] = useState("");
-  const [countySearchLocal, setCountySearchLocal] = useState("");
 
-  // OTP timer countdown effect
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
@@ -79,7 +65,6 @@ export function CustomerSignupForm({
 
 
   useEffect(() => {
-    // OTP timer countdown effect
     let interval: NodeJS.Timeout | null = null;
 
     if (timerActive && otpTimer > 0) {
@@ -94,22 +79,6 @@ export function CustomerSignupForm({
       }, 1000);
     }
 
-    // Fetch countries on mount
-    const fetchCountries = async () => {
-      try {
-        const data = await getAllCountries(); // Assuming getAllCountries is self-contained
-        //@ts-ignore
-        setCountries(data.hashSet);
-      } catch (error) {
-        console.error("Failed to fetch countries:", error);
-        toast.error("Could not load country list.");
-      } finally {
-        setIsLoadingCountries(false);
-      }
-    };
-
-    fetchCountries();
-
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -117,7 +86,7 @@ export function CustomerSignupForm({
 
 
 
-  // Check email availability (debounced)
+
   useEffect(() => {
     if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
       setEmailStatus('idle');
@@ -136,19 +105,19 @@ export function CustomerSignupForm({
     const newErrors: Record<string, string> = {}
 
     switch (currentStep) {
-  case 1:
-    if (!formData.accountType) {
-      newErrors.accountType = "Please select an account type"
-    }
-    break; // <-- ADD THIS break so we don't fall-through to case 2
+      case 1:
+        if (!formData.accountType) {
+          newErrors.accountType = "Please select an account type"
+        }
+        break;
 
-  case 2:
-    if (!formData.email) {
-      newErrors.email = "Email is required"
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address"
-    }
-    break
+      case 2:
+        if (!formData.email) {
+          newErrors.email = "Email is required"
+        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+          newErrors.email = "Please enter a valid email address"
+        }
+        break
       case 3:
         if (!formData.phone) {
           newErrors.phone = "Phone number is required"
@@ -168,41 +137,6 @@ export function CustomerSignupForm({
           newErrors.otp = "Please enter a valid 6-digit code"
         }
         break
-        case 6:
-        if (!formData.country) newErrors.country = "Country is required";
-         if (formData.country === "Kenya" && !formData.county)
-         newErrors.county = "County is required";
-        break;
-
-      // case 6:
-      //   if (formData.accountType === "INDIVIDUAL") {
-      //     if (!formData.firstName) {
-      //       newErrors.firstName = "First name is required"
-      //     }
-      //     if (!formData.lastName) {
-      //       newErrors.lastName = "Last name is required"
-      //     }
-      //     if (!formData.gender) {
-      //       newErrors.gender = "Please select your gender"
-      //     }
-      //   } else if (formData.accountType === "ORGANIZATION") {
-      //     if (!formData.organizationName) {
-      //       newErrors.organizationName = "Organization name is required"
-      //     }
-      //     if (!formData.contactFirstName) {
-      //       newErrors.contactFirstName = "Contact person's first name is required"
-      //     }
-      //     if (!formData.contactLastName) {
-      //       newErrors.contactLastName = "Contact person's last name is required"
-      //     }
-      //   }
-      //   break
-      // case 7:
-      //   // Individual validation
-      //   if (!formData.country) newErrors.country = "Country is required";
-      //   if (!formData.town) newErrors.town = "Town is required";
-      //   if (!formData.estate) newErrors.estate = "Estate is required";
-      //   break
       case 6:
         if (!formData.password) {
           newErrors.password = "Password is required"
@@ -223,8 +157,8 @@ export function CustomerSignupForm({
 
   const handleContinue = async () => {
     if (validateStep()) {
-      // Auto-send OTP when moving from step 4 to step 5
-      // TODO: Replace placeholder with actual handleInitiateRegistration() call when backend OTP service is ready
+
+
       if (currentStep === 4) {
         toast.success("OTP sent successfully (placeholder)");
         setOtpTimer(120);
@@ -233,7 +167,7 @@ export function CustomerSignupForm({
         nextStep();
         return;
       }
-      // Block advancing from step 2 if email is already taken
+
       if (currentStep === 2 && emailStatus === 'taken') {
         toast.error("This email is already registered");
         return;
@@ -247,7 +181,7 @@ export function CustomerSignupForm({
   const handleFormSubmit = () => {
     if (validateStep()) {
       setIsSubmitting(true)
-      // Simulate API call
+
       setTimeout(() => {
         handleSubmit()
         setIsSubmitting(false)
@@ -257,7 +191,7 @@ export function CustomerSignupForm({
 
   const handleGoogleSignIn = () => {
     setIsGoogleLoading(true)
-    // Simulate Google auth
+
     setTimeout(() => {
       updateFormData({
         email: "user@example.com",
@@ -271,7 +205,7 @@ export function CustomerSignupForm({
 
   const handleSendOTP = async () => {
     setIsSubmitting(true)
-    setOtpTimer(120); // 2 minutes
+    setOtpTimer(120);
     setTimerActive(true);
     if (!formData.accountType) {
       toast.error("Please select an account type")
@@ -288,11 +222,7 @@ export function CustomerSignupForm({
       setIsSubmitting(false)
       return
     }
-    // if (!formData.nationalId) {
-    //   toast.error("Please enter your National ID")
-    //   setIsSubmitting(false)
-    //   return
-    // }
+
     try {
       await handleInitiateRegistration()
       setHasInitialOtpBeenSent(true);
@@ -305,55 +235,32 @@ export function CustomerSignupForm({
     }
   }
 
-  // UPDATED THIS FUNCTION
+
   const handleResendOTP = async () => {
     setIsSubmitting(true);
-    setOtpTimer(120); // 2 minutes
+    setOtpTimer(120);
     setTimerActive(true);
     try {
-      // It calls the prop passed from the parent component
+
       await handleResendOtp();
     } catch (error) {
-      // The parent component handles toast notifications
+
       console.error("Resend OTP failed", error);
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  // const handleVerifyOTP = async () => {
-  //   setIsSubmitting(true)
-  //   try {
-  //     const data = {
-  //       email: formData.email,
-  //       phoneNumber: formData.phone,
-  //       otp: formData.otp,
-  //     }
-  //     const res = await verifyOtp(data)
-  //     if (res.data.success) {
-  //       toast.success("OTP verified successfully!")
-  //       setIsOtpVerified(true)
-  //     } else {
-  //       toast.error(`Failed To Verify OTP: ${res.data.message}`)
-  //     }
-  //   } catch (error: any) {
-  //     console.log(error)
-  //     toast.error(error.response?.data?.message || "An error occurred during verification")
-  //     setIsOtpVerified(false)
-  //   } finally {
-  //     setIsSubmitting(false)
-  //   }
-  // }
   const handleVerifyOTP = async () => {
     setIsSubmitting(true)
-    //TEMPORARY BYPASS: Directly verify without API
+
     setIsOtpVerified(true);
     toast.success("Bypassed verification for testing!");
     setIsSubmitting(false);
-    nextStep(); // Auto-advance to next step after verification
+    nextStep();
   }
 
-  // Reset OTP verification if OTP or method changes
+
   useEffect(() => {
     setIsOtpVerified(false)
   }, [formData.otp, formData.otpMethod])
@@ -465,26 +372,6 @@ export function CustomerSignupForm({
 
               </div>
               <GoogleSignIn />
-
-              {/* <div className="relative flex items-center my-8">
-                <div className="flex-grow border-t border-gray-300"></div>
-                <span className="mx-4 flex-shrink text-gray-400 text-sm">or</span>
-                <div className="flex-grow border-t border-gray-300"></div>
-              </div> */}
-              {/* <Button
-                type="button"
-                variant="outline"
-                className="w-full flex items-center justify-center gap-2 h-11"
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading}
-              >
-                {isGoogleLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <img src="/images/google.png" alt="Google" width={20} height={20} />
-                )}
-                Continue with Google
-              </Button> */}
               <p className="text-gray-500">By proceeding, you consent to receive calls, WhatsApp, or SMS messages, including automated means, from JaGedo and its affiliates to the provided number.</p>
 
             </div>
@@ -511,28 +398,40 @@ export function CustomerSignupForm({
 
             {/* Phone Input Section */}
             <div className="space-y-2">
-              <Label htmlFor="phone" className="text-gray-700">Phone number</Label>
-              <div className="flex items-center border border-gray-500 rounded-lg overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[rgb(0,0,122)]">
-                {/* Country Code - Kenya Default (No Dropdown) */}
-                <div className="p-3 bg-gray-100 text-gray-700 border-r text-sm font-medium">
-                  🇰🇪 +254
+              <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
+                Phone number
+              </Label>
+
+              <div
+                className={cn(
+                  "flex h-10 items-center w-full rounded-md border bg-white px-3 shadow-sm transition-all duration-200",
+                  "focus-within:border-[rgb(0,0,122)] focus-within:ring-2 focus-within:ring-[rgb(0,0,122)]/20",
+                  errors.phone ? "border-red-500 focus-within:ring-red-500/20" : "border-gray-300"
+                )}
+              >
+                {/* Country Code */}
+                <div className="flex items-center gap-2 pr-3 border-r border-gray-200 mr-3 select-none">
+                  <span className="text-lg">🇰🇪</span>
+                  <span className="text-sm font-medium text-gray-500">+254</span>
                 </div>
 
                 {/* Phone Number Input */}
-                <Input
+                <input
                   id="phone"
                   type="tel"
-                  placeholder="7XXXXXXXX or 1XXXXXXXX"
-                  className="w-full outline-none focus:ring-0 border-0 px-3"
+                  placeholder="7XX XXX XXX"
+                  className="flex-1 w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
                   value={formData.phone}
                   onChange={(e) => {
                     const value = e.target.value;
-                    // Kenya default - only allow Kenya format
+                    // Strip non-numeric characters
                     const cleanValue = value.replace(/\D/g, '').slice(0, 9);
-                    // Ensure it starts with 7 or 1
-                    if (cleanValue && !/^[17]/.test(cleanValue)) {
+
+                    // Validation: Must start with 1 or 7 if data is entered
+                    if (cleanValue.length > 0 && !/^[17]/.test(cleanValue)) {
                       return;
                     }
+
                     updateFormData({
                       phone: cleanValue,
                       fullPhoneNumber: `+254${cleanValue}`
@@ -540,8 +439,17 @@ export function CustomerSignupForm({
                   }}
                 />
               </div>
-              {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
-              <p className="text-xs text-gray-500">Enter your 9-digit phone number starting with 7 or 1</p>
+
+              {/* Error & Helper Text */}
+              {errors.phone ? (
+                <p className="text-xs text-red-500 font-medium animate-in slide-in-from-top-1">
+                  {errors.phone}
+                </p>
+              ) : (
+                <p className="text-[11px] text-gray-500">
+                  Format: 7XX... or 1XX... (do not include the first 0)
+                </p>
+              )}
             </div>
             {/* <div className="space-y-2 my-2">
               <Label htmlFor="nationalId">National ID</Label>
@@ -677,9 +585,9 @@ export function CustomerSignupForm({
                   onChange={(e) => {
                     const value = e.target.value.replace(/\D/g, "");
                     updateFormData({ otp: value });
-                    // Auto-verify when 6 digits are entered
-                    if (value.length === 6) {                        
-                      
+
+                    if (value.length === 6) {
+
                       setTimeout(() => handleVerifyOTP(), 0);
                     }
                   }}
@@ -711,238 +619,6 @@ export function CustomerSignupForm({
             </div>
           </div>
         )
-case 6:
-  return (
-    <div className="space-y-6 animate-fade-in max-w-md mx-auto">
-      <div className="flex flex-col items-center">
-        <img src="/jagedologo.png" alt="JaGedo Logo" className="h-12 mb-4" />
-        <h2 className="text-2xl font-semibold text-[rgb(0,0,122)]">
-          Location Details
-        </h2>
-      </div>
-
-      {/* Country */}
-      <div className="space-y-2">
-        <Label>Country</Label>
-        <Select
-          value={formData.country}
-          onValueChange={(value) => updateFormData({ country: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select country" />
-          </SelectTrigger>
-          <SelectContent className="bg-white">
-            <div className="px-2 py-1">
-              <Input
-                placeholder="Search country..."
-                value={countrySearch}
-                onChange={(e) => setCountrySearch(e.target.value)}
-              />
-            </div>
-
-            <div className="max-h-60 overflow-y-auto">
-              {countries
-                .filter((c) => (c.name || "").toLowerCase().includes(countrySearch.toLowerCase()))
-                .map((c) => (
-                <SelectItem key={c.name} value={c.name}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </div>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* County (SEARCHABLE) */}
-      {formData.country?.toLowerCase() === "kenya" && (
-        <div className="space-y-2">
-          <Label>County</Label>
-
-          <Select
-            value={formData.county}
-            onValueChange={(value) =>
-              updateFormData({ county: value })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select county" />
-            </SelectTrigger>
-
-            <SelectContent className="bg-white">
-              <div className="px-2 py-1">
-                <Input
-                  placeholder="Search county..."
-                  onChange={(e) =>
-                    updateFormData({ countySearch: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="max-h-60 overflow-y-auto">
-                {Object.keys(counties)
-                  .filter((county) =>
-                    county
-                      .toLowerCase()
-                      .includes(
-                        (formData.countySearch || "").toLowerCase()
-                      )
-                  )
-                  .map((county) => (
-                    <SelectItem key={county} value={county}>
-                      {county}
-                    </SelectItem>
-                  ))}
-              </div>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-    </div>
-  )
-
-      // case 6:
-      //   if (formData.accountType === "INDIVIDUAL") {
-      //     return (
-      //       <div className="space-y-6 animate-fade-in">
-      //         <div className="space-y-4">
-      //           {/* Logo */}
-      //           <div className="flex justify-center">
-      //             <img
-      //               src="/jagedologo.png"
-      //               alt="JaGedo Logo"
-      //               className="h-12 mb-6"
-      //             />
-      //           </div>
-      //           <div className="rounded-lg p-10 border border-gray-300 overflow-hidden max-w-[20rem]">
-      //             <div className="flex justify-center pb-7">
-      //               <h2 className="text-xl font-semibold">Personal information</h2>
-      //             </div>
-      //             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      //               <div className="space-y-2">
-      //                 <Label htmlFor="firstName">First name</Label>
-      //                 <Input
-      //                   id="firstName"
-      //                   placeholder="Enter your first name"
-      //                   value={formData.firstName}
-      //                   onChange={(e) => updateFormData({ firstName: e.target.value })}
-      //                 />
-      //                 {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName}</p>}
-      //               </div>
-
-      //               <div className="space-y-2">
-      //                 <Label htmlFor="lastName">Last name</Label>
-      //                 <Input
-      //                   id="lastName"
-      //                   placeholder="Enter your last name"
-      //                   value={formData.lastName}
-      //                   onChange={(e) => updateFormData({ lastName: e.target.value })}
-      //                 />
-      //                 {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName}</p>}
-      //               </div>
-      //             </div>
-
-      //             <div className="space-y-2 mt-8">
-      //               <Label htmlFor="gender">Gender</Label>
-      //               <Select value={formData.gender} onValueChange={(value) => updateFormData({ gender: value })}>
-      //                 <SelectTrigger id="gender">
-      //                   <SelectValue placeholder="Select your gender" />
-      //                 </SelectTrigger>
-      //                 <SelectContent className="bg-white">
-      //                   <SelectItem value="male">Male</SelectItem>
-      //                   <SelectItem value="female">Female</SelectItem>
-      //                 </SelectContent>
-      //               </Select>
-      //               {errors.gender && <p className="text-red-500 text-sm">{errors.gender}</p>}
-      //             </div>
-      //           </div>
-      //         </div>
-      //       </div>
-      //     )
-      //   } else {
-      //     return (
-      //       <div className="space-y-6 animate-fade-in">
-      //         <div className="space-y-4">
-      //           {/* Logo */}
-      //           <div className="flex justify-center">
-      //             <img
-      //               src="/jagedologo.png"
-      //               alt="JaGedo Logo"
-      //               className="h-12 mb-6"
-      //             />
-      //           </div>
-      //           <h2 className="text-xl font-semibold">Organizational Information</h2>
-      //           <div className="space-y-2">
-      //             <Input
-      //               id="organizationName"
-      //               placeholder="Enter organization name"
-      //               value={formData.organizationName}
-      //               onChange={(e) => updateFormData({ organizationName: e.target.value })}
-      //             />
-      //             {errors.organizationName && <p className="text-red-500 text-sm">{errors.organizationName}</p>}
-      //           </div>
-
-      //           <div className="pt-2">
-      //             <h3 className="text-md font-medium mb-3">Contact person details</h3>
-      //             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      //               <div className="space-y-2">
-      //                 <Input
-      //                   id="contactFirstName"
-      //                   placeholder="First name"
-      //                   value={formData.contactFirstName}
-      //                   onChange={(e) => updateFormData({ contactFirstName: e.target.value })}
-      //                 />
-      //                 {errors.contactFirstName && <p className="text-red-500 text-sm">{errors.contactFirstName}</p>}
-      //               </div>
-
-      //               <div className="space-y-2">
-      //                 <Input
-      //                   id="contactLastName"
-      //                   placeholder="Last name"
-      //                   value={formData.contactLastName}
-      //                   onChange={(e) => updateFormData({ contactLastName: e.target.value })}
-      //                 />
-      //                 {errors.contactLastName && <p className="text-red-500 text-sm">{errors.contactLastName}</p>}
-      //               </div>
-      //             </div>
-
-      //             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-      //               <div className="space-y-2">
-      //                 <Label htmlFor="contactPhone">Phone number (optional)</Label>
-      //                 <div className="relative">
-      //                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-5 w-5" />
-      //                   <Input
-      //                     id="contactPhone"
-      //                     type="tel"
-      //                     placeholder="Contact phone number"
-      //                     className="pl-10"
-      //                     value={formData.contactPhone}
-      //                     onChange={(e) => updateFormData({ contactPhone: e.target.value })}
-      //                   />
-      //                 </div>
-      //               </div>
-
-      //               <div className="space-y-2">
-      //                 <Label htmlFor="contactEmail">Email address (optional)</Label>
-      //                 <div className="relative">
-      //                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 h-5 w-5" />
-      //                   <Input
-      //                     id="contactEmail"
-      //                     type="email"
-      //                     placeholder="Contact email address"
-      //                     className="pl-10"
-      //                     value={formData.contactEmail}
-      //                     onChange={(e) => updateFormData({ contactEmail: e.target.value })}
-      //                   />
-      //                 </div>
-      //               </div>
-      //             </div>
-      //             {errors.contactInfo && <p className="text-red-500 text-sm mt-2">{errors.contactInfo}</p>}
-      //           </div>
-      //         </div>
-      //       </div>
-      //     )
-      //   }
-
       case 6:
         return (
           <div className="space-y-6 animate-fade-in max-w-md mx-auto">
@@ -969,7 +645,7 @@ case 6:
                     value={formData.password}
                     onChange={(e) => updateFormData({ password: e.target.value })}
                   />
-                  
+
                   {formData.password && formData.password.length >= 8 && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">✅</span>
                   )}
@@ -982,10 +658,10 @@ case 6:
                   </button>
                 </div>
                 {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
-              
-                  
 
-              
+
+
+
               </div>
               {/* Password Requirements Checklist */}
               <div className="mt-2 space-y-1.5">
@@ -1047,7 +723,7 @@ case 6:
               >
                 I agree to the{" "}
                 <a
-                  href="https://jagedo.s3.us-east-1.amazonaws.com/legal/Jagedo%20Terms%20of%20Service.pdf"
+                  href="/termsOfService"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium text-blue-800 underline hover:text-blue-900 hover:no-underline transition-colors duration-200"
@@ -1056,7 +732,7 @@ case 6:
                 </a>
                 {" "}and{" "}
                 <a
-                  href="https://jagedo.s3.us-east-1.amazonaws.com/legal/Jagedo%20Data%20Protection%20Policy.pdf"
+                  href="/privacyPolicy"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium text-blue-800 underline hover:text-blue-900 hover:no-underline transition-colors duration-200"
@@ -1065,16 +741,16 @@ case 6:
                 </a>
                 .
               </label>
-            </div>
-          </div>
+            </div >
+          </div >
         )
       default:
         return null
     }
   }
 
-  //const isLastStep = currentStep === 8;
-  const isLastStep = currentStep === 7;
+
+  const isLastStep = currentStep === 6;
 
 
   return (
