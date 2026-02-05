@@ -79,34 +79,41 @@ function AccountInfo() {
     }
   };
 
-  /* ---------- LOAD PROFILE (REAL FIX) ---------- */
+  /* ---------- LOAD PROFILE (USER-SPECIFIC) ---------- */
   useEffect(() => {
+    if (!user) return;
+
+    const userId = user.id;
+    const storageKey = userId ? `profile_${userId}` : "profile";
+
     let stored = null;
     try {
-      const raw = localStorage.getItem("profile");
+      const raw = localStorage.getItem(storageKey);
       if (raw && raw !== "undefined") {
         stored = JSON.parse(raw);
       }
     } catch {
-      localStorage.removeItem("profile");
+      localStorage.removeItem(storageKey);
     }
 
     // Build profile from user data
-    const userProfile = user ? {
+    const userProfile = {
+      id: userId,
       name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
       email: user.username || user.email || "",
-      phone: user.phone || "",
+      phone: user.phone || user.phoneNumber || "",
       userType: user.userType,
       type: user.profileType || user.accountType,
       // Organization fields - check multiple possible field names
       organizationName: user.organizationName || "",
       contactPerson: user.contactFullName || user.contactPerson || "",
-    } : null;
+    };
 
-    if (stored && userProfile) {
-      // Merge stored profile with user data, preferring user data for org fields if stored is empty
+    if (stored) {
+      // Merge stored profile with user data
       const mergedProfile = {
         ...stored,
+        id: userId,
         userType: userProfile.userType || stored.userType,
         type: userProfile.type || stored.type,
         organizationName: stored.organizationName || userProfile.organizationName,
@@ -120,25 +127,20 @@ function AccountInfo() {
         setImageSrc(mergedProfile.avatar);
       }
       // Update stored profile with merged data
-      localStorage.setItem("profile", JSON.stringify(mergedProfile));
-    } else if (stored) {
-      setProfile(stored);
-      setPhoneValue(stored.phone || "");
-      setEmailValue(stored.email || "");
-      if (stored.avatar) {
-        setImageSrc(stored.avatar);
-      }
-    } else if (userProfile) {
+      localStorage.setItem(storageKey, JSON.stringify(mergedProfile));
+    } else {
       setProfile(userProfile);
       setPhoneValue(userProfile.phone);
       setEmailValue(userProfile.email);
-      localStorage.setItem("profile", JSON.stringify(userProfile));
+      localStorage.setItem(storageKey, JSON.stringify(userProfile));
     }
   }, [user]);
 
   /* ---------- SAVE ---------- */
   const saveProfile = (updated) => {
-    localStorage.setItem("profile", JSON.stringify(updated));
+    const userId = user?.id;
+    const storageKey = userId ? `profile_${userId}` : "profile";
+    localStorage.setItem(storageKey, JSON.stringify(updated));
     setProfile(updated);
     toast.success("Profile updated");
   };

@@ -98,6 +98,10 @@ useEffect(() => {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!user?.id) {
+        setIsLoadingProfile(false);
+        return;
+      }
       const storedData = localStorage.getItem(`contractorExperience_${user.id}`);
       if (storedData) {
         try {
@@ -110,8 +114,9 @@ useEffect(() => {
           console.error("Error parsing stored data:", error);
         }
       }
-      setCategories(prefilledCategories);
-      setProjects(prefilledProjects);
+      // Start with empty data for new users (no prefilled mock data)
+      setCategories([]);
+      setProjects([]);
       setIsLoadingProfile(false);
       // try {
       //   const response = await getProviderProfile(axiosInstance, user.id);
@@ -257,22 +262,10 @@ useEffect(() => {
     setCategories(prev => prev.map(cat => cat.id === id ? { ...cat, [field]: file } : cat));
   };
 
-  const removeCategoryFile = async (id: string, field: 'certificateFile' | 'licenseFile') => {
+  const removeCategoryFile = (id: string, field: 'certificateFile' | 'licenseFile') => {
     const updatedCategories = categories.map(cat => (cat.id === id ? { ...cat, [field]: null } : cat));
-
-    try {
-      await toast.promise(
-        updateExperienceOnServer(updatedCategories, projects),
-        {
-          loading: "Deleting file...",
-          success: "File deleted successfully!",
-          error: (err: any) => err.response?.data?.message || "Failed to delete file."
-        }
-      );
-      setCategories(updatedCategories);
-    } catch (err) {
-      console.error(err);
-    }
+    setCategories(updatedCategories);
+    toast.success("File removed successfully!");
   };
 
   const addCategoryRow = () => {
@@ -328,18 +321,10 @@ const handleCategoryChange = (id: string, value: string) => {
     if (file) handleProjectChange(id, field, file);
   };
 
-  const removeProjectFile = async (id: string, field: 'projectFile' | 'referenceLetterFile') => {
+  const removeProjectFile = (id: string, field: 'projectFile' | 'referenceLetterFile') => {
     const updatedProjects = projects.map(proj => proj.id === id ? { ...proj, [field]: null } : proj);
-    try {
-      await toast.promise(updateExperienceOnServer(categories, updatedProjects), {
-        loading: "Deleting file...",
-        success: "File deleted successfully!",
-        error: (err: any) => err.response?.data?.message || "Failed to delete file."
-      });
-      setProjects(updatedProjects);
-    } catch (err) {
-      console.error(err);
-    }
+    setProjects(updatedProjects);
+    toast.success("File removed successfully!");
   };
 
   // const addProjectRow = () => {
@@ -354,20 +339,20 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   if (isReadOnly) return toast.error("Your approved profile cannot be modified.");
 
-  // Validation
-  if (categories.some(c => !c.category || !c.categoryClass || !c.yearsOfExperience) || projects.some(p => !p.projectName)) {
-    return toast.error("Please fill in all required fields.");
+  // Validation - only validate categories if there are any
+  if (categories.length > 0 && categories.some(c => !c.category || !c.categoryClass || !c.yearsOfExperience)) {
+    return toast.error("Please fill in all required fields for categories.");
   }
 
   setIsSubmitting(true);
   try {
     await toast.promise(updateExperienceOnServer(categories, projects), {
-      loading: "Processing submission...",
-      success: "Experience updated successfully!",
-      error: (err: any) => err.response?.data?.message || "Failed to update experience."
+      loading: "Saving experience...",
+      success: "Experience saved successfully!",
+      error: (err: any) => err.response?.data?.message || "Failed to save experience."
     });
 
-    setSubmitted(true); // Shows the success message
+    // Don't set submitted to true - keep the form visible so user can see their saved data
   } catch (err) {
     console.error(err);
   } finally {
@@ -383,7 +368,15 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   const renderFileState = (file: FileOrUrl, onRemove: () => void, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void) => {
     if (file) {
       const isUrl = typeof file === 'string';
-      const fileName = isUrl ? new URL(file).pathname.split('/').pop() : file.name;
+      const isFileObject = file instanceof File;
+      const isSerializedFile = typeof file === 'object' && file !== null && 'name' in file;
+      const fileName = isUrl
+        ? new URL(file).pathname.split('/').pop()
+        : isFileObject
+          ? file.name
+          : isSerializedFile
+            ? (file as any).name
+            : 'Unknown file';
       return (
         <div className="flex items-center justify-between gap-2 bg-gray-100 p-2 rounded-md">
           <div className="flex-1 min-w-0">
@@ -416,95 +409,127 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
             )}
 
             {/* Categories */}
-             {/* Categories */}
-      <div>
-        <h2 className="font-semibold mb-2">Trade Categories</h2>
-        {categories.map(cat => (
-          <div key={cat.id} className="grid grid-cols-5 gap-2 mb-2">
-            <select
-              value={cat.category}
-              onChange={e => handleCategoryChange(cat.id, e.target.value)}
-              disabled={isReadOnly}
-              className="border p-2"
-            >
-              <option value="">Select Category</option>
-              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-            </select>
+            <div>
+              <h2 className="font-semibold mb-4 text-lg">Trade Categories</h2>
+              {categories.map((cat, index) => (
+                <div key={cat.id} className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm font-medium text-gray-600">Category {index + 1}</span>
+                    {!isReadOnly && categories.length > 1 && (
+                      <button type="button" onClick={() => removeCategoryRow(cat.id)} className="text-red-500 hover:text-red-700">
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                      <select
+                        value={cat.category}
+                        onChange={e => handleCategoryChange(cat.id, e.target.value)}
+                        disabled={isReadOnly}
+                        className="w-full p-3 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                      >
+                        <option value="">Select Category</option>
+                        {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
 
-            <select
-              value={cat.specialization}
-              onChange={e =>
-                setCategories(prev =>
-                  prev.map(x => x.id === cat.id ? { ...x, specialization: e.target.value } : x)
-                )
-              }
-              className="border p-2"
-              disabled={isReadOnly}
-            >
-              <option value="">Specialization</option>
-              {BUILDING_WORKS_SPECIALIZATIONS.map(s => <option key={s}>{s}</option>)}
-            </select>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
+                      <select
+                        value={cat.specialization}
+                        onChange={e =>
+                          setCategories(prev =>
+                            prev.map(x => x.id === cat.id ? { ...x, specialization: e.target.value } : x)
+                          )
+                        }
+                        className="w-full p-3 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        disabled={isReadOnly}
+                      >
+                        <option value="">Select Specialization</option>
+                        {BUILDING_WORKS_SPECIALIZATIONS.map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
 
-            <select
-              value={cat.categoryClass}
-              onChange={e =>
-                setCategories(prev =>
-                  prev.map(x => x.id === cat.id ? { ...x, categoryClass: e.target.value } : x)
-                )
-              }
-              className="border p-2"
-            >
-              <option value="">Class</option>
-              {["NCA 1","NCA 2","NCA 3","NCA 4","NCA 5"].map(c => <option key={c}>{c}</option>)}
-            </select>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">NCA Class</label>
+                      <select
+                        value={cat.categoryClass}
+                        onChange={e =>
+                          setCategories(prev =>
+                            prev.map(x => x.id === cat.id ? { ...x, categoryClass: e.target.value } : x)
+                          )
+                        }
+                        className="w-full p-3 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        disabled={isReadOnly}
+                      >
+                        <option value="">Select Class</option>
+                        {["NCA 1","NCA 2","NCA 3","NCA 4","NCA 5"].map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
 
-            <select
-              value={cat.yearsOfExperience}
-              onChange={e =>
-                setCategories(prev =>
-                  prev.map(x => x.id === cat.id ? { ...x, yearsOfExperience: e.target.value } : x)
-                )
-              }
-              className="border p-2"
-            >
-              <option value="">Years</option>
-              {["10+","5-10","3-5","1-3"].map(y => <option key={y}>{y}</option>)}
-            </select>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Years of Experience</label>
+                      <select
+                        value={cat.yearsOfExperience}
+                        onChange={e =>
+                          setCategories(prev =>
+                            prev.map(x => x.id === cat.id ? { ...x, yearsOfExperience: e.target.value } : x)
+                          )
+                        }
+                        className="w-full p-3 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        disabled={isReadOnly}
+                      >
+                        <option value="">Select Years</option>
+                        {["10+","5-10","3-5","1-3"].map(y => <option key={y}>{y}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
 
-            {!isReadOnly && (
-              <button type="button" onClick={() => removeCategoryRow(cat.id)}>
-                <TrashIcon className="w-5 h-5 text-red-500" />
-              </button>
-            )}
-          </div>
-        ))}
-
-        {!isReadOnly && (
-          <button type="button" onClick={addCategoryRow} className="flex items-center gap-1 text-blue-700">
-            <PlusIcon className="w-4 h-4" /> Add Category
-          </button>
-        )}
-      </div>
+              {!isReadOnly && (
+                <button type="button" onClick={addCategoryRow} className="flex items-center gap-2 text-blue-700 hover:text-blue-800 font-medium mt-2">
+                  <PlusIcon className="w-5 h-5" /> Add Category
+                </button>
+              )}
+            </div>
 
             {/* Projects */}
-           <div>
-        <h2 className="font-semibold mb-2">Projects (Auto per Category)</h2>
-        {projects.map(proj => (
-          <div key={proj.id} className="grid grid-cols-3 gap-2 mb-2">
-            <input value={proj.projectName} disabled className="border p-2 bg-gray-100" />
-            {renderFileState(
-              proj.projectFile,
-              () => setProjects(p => p.map(x => x.id === proj.id ? { ...x, projectFile: null } : x)),
-              e => setProjects(p => p.map(x => x.id === proj.id ? { ...x, projectFile: e.target.files[0] } : x))
-            )}
-            {renderFileState(
-              proj.referenceLetterFile,
-              () => setProjects(p => p.map(x => x.id === proj.id ? { ...x, referenceLetterFile: null } : x)),
-              e => setProjects(p => p.map(x => x.id === proj.id ? { ...x, referenceLetterFile: e.target.files[0] } : x))
-            )}
-          </div>
-        ))}
-      </div>
+            <div>
+              <h2 className="font-semibold mb-4 text-lg">Projects (Auto per Category)</h2>
+              {projects.map((proj, index) => (
+                <div key={proj.id} className="mb-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
+                      <input
+                        value={proj.projectName}
+                        disabled
+                        className="w-full p-3 bg-gray-200 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Project File</label>
+                      {renderFileState(
+                        proj.projectFile,
+                        () => setProjects(p => p.map(x => x.id === proj.id ? { ...x, projectFile: null } : x)),
+                        e => setProjects(p => p.map(x => x.id === proj.id ? { ...x, projectFile: e.target.files[0] } : x))
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Reference Letter</label>
+                      {renderFileState(
+                        proj.referenceLetterFile,
+                        () => setProjects(p => p.map(x => x.id === proj.id ? { ...x, referenceLetterFile: null } : x)),
+                        e => setProjects(p => p.map(x => x.id === proj.id ? { ...x, referenceLetterFile: e.target.files[0] } : x))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {!isReadOnly && (
               <div className="mt-6 pt-4 text-center md:text-right border-t">
@@ -522,6 +547,8 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         )}
       </div>
     </div>
+
+    
   );
 };
 
