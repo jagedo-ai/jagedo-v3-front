@@ -816,7 +816,8 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
             <DocumentSection title="Certifications" docs={certifications} />
           )}
 
-          {portfolios.length > 0 && (
+          {/* Hide portfolios section in admin view for builders and customers */}
+          {portfolios.length > 0 && !isAdmin && (
             <DocumentSection title="Portfolios (Optional)" docs={portfolios} />
           )}
 
