@@ -70,26 +70,6 @@ export function CustomerSignupForm({
   }, [timerActive]);
 
 
-  useEffect(() => {
-    // OTP timer countdown effect
-    let interval: NodeJS.Timeout | null = null;
-
-    if (timerActive && otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => {
-          if (prev <= 1) {
-            setTimerActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timerActive]);
 
 
 
@@ -323,10 +303,10 @@ export function CustomerSignupForm({
     nextStep(); // Auto-advance to next step after verification
   }
 
-  // Reset OTP verification if OTP or method changes
+  // Reset OTP verification only if OTP method changes (not when OTP value changes during verification)
   useEffect(() => {
     setIsOtpVerified(false)
-  }, [formData.otp, formData.otpMethod])
+  }, [formData.otpMethod])
 
   const renderStepContent = () => {
     switch (currentStep) {
