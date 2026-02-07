@@ -3,7 +3,6 @@ import { FiEdit } from "react-icons/fi";
 import useAxiosWithAuth from "@/utils/axiosInterceptor";
 import { useGlobalContext } from "@/context/GlobalProvider";
 import { getProviderProfile, updateProfileAddress } from "@/api/provider.api";
-import { getAllCountries } from "@/api/countries.api";
 import { counties } from "@/pages/data/counties";
 import { MOCK_ADDRESSES } from "@/pages/mockAddresses";
 
@@ -13,7 +12,7 @@ const Address = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [address, setAddress] = useState({
-    country: "",
+    country: "Kenya",
     county: "",
     subCounty: "",
     estate: "",
@@ -25,86 +24,42 @@ const Address = () => {
     type: "success" | "error";
     text: string;
   } | null>(null);
-
   const axiosInstance = useAxiosWithAuth(import.meta.env.VITE_SERVER_URL);
-
-  const [countriesList, setCountriesList] = useState<any[]>([]);
-  const [isLoadingCountries, setIsLoadingCountries] = useState(true);
+  const isLoadingCountries = false;
 
   useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const data = await getAllCountries();
-        // @ts-ignore
-        setCountriesList(data.hashSet || []);
-      } catch (error) {
-        console.error("Failed to fetch countries:", error);
-      } finally {
-        setIsLoadingCountries(false);
+    if (!user) return;
+
+    const key = (user.username || user.email || "").split("@")[0];
+    let stored = null;
+    try {
+      const raw = localStorage.getItem("address");
+      if (raw && raw !== "undefined") {
+        stored = JSON.parse(raw);
       }
-    };
-    fetchCountries();
-  }, []);
-
-  // useEffect(() => {
-  //   const fetchProviderProfile = async () => {
-  //     if (user?.id) {
-  //       try {
-  //         setLoading(true);
-  //         const profile = await getProviderProfile(axiosInstance, user.id);
-  //         setProviderProfile(profile.data);
-  //         setAddress({
-  //           country: profile.data.country || "",
-  //           county: profile.data.county || "",
-  //           subCounty: profile.data.subCounty || "",
-  //           estate: profile.data.estate || "",
-  //         });
-  //       } catch (error) {
-  //         console.error("Failed to fetch provider profile:", error);
-  //         setUpdateMessage({
-  //           type: "error",
-  //           text: "Failed to fetch profile data"
-  //         });
-  //       } finally {
-  //         setLoading(false);
-  //       }
-  //     }
-  //   };
-  //   fetchProviderProfile();
-  // }, [user?.id]);
-useEffect(() => {
-  if (!user) return;
-
-  const key = (user.username || user.email || "").split("@")[0];
-  let stored = null;
-  try {
-    const raw = localStorage.getItem("address");
-    if (raw && raw !== "undefined") {
-      stored = JSON.parse(raw);
+    } catch {
+      localStorage.removeItem("address");
     }
-  } catch {
-    localStorage.removeItem("address");
-  }
 
-  if (stored) {
-    setAddress(stored);
-    setProviderProfile(stored);
-  } else {
-    // const mock = MOCK_ADDRESSES[key] || MOCK_ADDRESSES["lucy"];
-    const mock = MOCK_ADDRESSES[key] || {
-      country: user.country || "",
-      county: user.county || "",
-      subCounty: user.subCounty || "",
-      estate: user.estate || user.town || "",
-    };
+    if (stored) {
+      setAddress(stored);
+      setProviderProfile(stored);
+    } else {
 
-    setAddress(mock);
-    setProviderProfile(mock);
-    localStorage.setItem("address", JSON.stringify(mock));
-  }
+      const mock = MOCK_ADDRESSES[key] || {
+        country: "Kenya",
+        county: user.county || "",
+        subCounty: user.subCounty || "",
+        estate: user.estate || user.town || "",
+      };
 
-  setLoading(false);
-}, [user]);
+      setAddress(mock);
+      setProviderProfile(mock);
+      localStorage.setItem("address", JSON.stringify(mock));
+    }
+
+    setLoading(false);
+  }, [user]);
 
   useEffect(() => {
     if (updateMessage) {
@@ -138,10 +93,7 @@ useEffect(() => {
   };
 
   const validateAddress = () => {
-    const requiredFields: Array<keyof typeof address> = ['country'];
-    if (address.country?.toLowerCase() === 'kenya') {
-      requiredFields.push('county');
-    }
+    const requiredFields: Array<keyof typeof address> = ['country', 'county'];
     const missingFields = requiredFields.filter(field => !address[field]?.trim());
 
     if (missingFields.length > 0) {
@@ -154,38 +106,20 @@ useEffect(() => {
     return true;
   };
 
-  // const handleUpdate = async () => {
-  //   if (!validateAddress()) return;
 
-  //   try {
-  //     setUpdating(true);
-  //     setUpdateMessage(null);
-  //     const response = await updateProfileAddress(axiosInstance, address);
-  //     setProviderProfile(prev => ({ ...prev, ...address }));
-  //     setUpdateMessage({ type: "success", text: "Address updated successfully!" });
-  //     setIsEditing(false);
-  //     console.log("Address updated successfully:", response.data);
-  //   } catch (error: any) {
-  //     console.error("Failed to update address:", error);
-  //     const errorMessage = error.response?.data?.message || error.message || "Failed to update address. Please try again.";
-  //     setUpdateMessage({ type: "error", text: errorMessage });
-  //   } finally {
-  //     setUpdating(false);
-  //   }
-  // };
-const handleUpdate = () => {
-  if (!validateAddress()) return;
+  const handleUpdate = () => {
+    if (!validateAddress()) return;
 
-  setUpdating(true);
+    setUpdating(true);
 
-  setTimeout(() => {
-    localStorage.setItem("address", JSON.stringify(address));
-    setProviderProfile(address);
-    setUpdateMessage({ type: "success", text: "Address updated successfully!" });
-    setIsEditing(false);
-    setUpdating(false);
-  }, 600);
-};
+    setTimeout(() => {
+      localStorage.setItem("address", JSON.stringify(address));
+      setProviderProfile(address);
+      setUpdateMessage({ type: "success", text: "Address updated successfully!" });
+      setIsEditing(false);
+      setUpdating(false);
+    }, 600);
+  };
 
   const handleCancel = () => {
     if (providerProfile) {
@@ -202,7 +136,7 @@ const handleUpdate = () => {
 
   const handleReset = () => {
     setAddress({
-      country: "",
+      country: "Kenya",
       county: "",
       subCounty: "",
       estate: "",
@@ -258,18 +192,17 @@ const handleUpdate = () => {
         <div className="space-y-2">
           <label className="block text-sm font-medium">Country <span className="text-red-500">*</span></label>
           {isEditing ? (
-            <select
-              name="country"
-              value={address.country}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border-b outline-none focus:border-[rgb(0,0,122)]"
-              required
-            >
-              <option value="">Select Country</option>
-              {countriesList.map((country) => (
-                <option key={country.name} value={country.name}>{country.name}</option>
-              ))}
-            </select>
+            <div className="w-full px-4 py-2 border-b bg-gray-50 flex items-center gap-2">
+              <div className="kenyanimg">
+                <img
+                  src="/src/assets/kenyan flag.png"
+                  alt="Kenya Flag"
+                  height="10"
+                  width="30"
+                />
+              </div>
+              <span className="text-gray-700 font-medium">Kenya</span>
+            </div>
           ) : (
             <p className="w-full px-4 py-2 border-b">{address.country || "Not specified"}</p>
           )}

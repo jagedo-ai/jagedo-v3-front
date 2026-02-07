@@ -7,11 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-// Import your data/API hooks
 import { getAllCountries } from "@/api/countries.api";
 import { counties } from "@/pages/data/counties";
 
-// Interfaces
 interface ProfileCompletionProps {
     user: any;
     accountType: "INDIVIDUAL" | "ORGANIZATION" | "CONTRACTOR" | "HARDWARE";
@@ -33,11 +31,11 @@ export function ProfileCompletion({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
 
-    // --- DATA LOADING STATES ---
+
     const [countries, setCountries] = useState<any[]>([]);
     const [isLoadingCountries, setIsLoadingCountries] = useState(true);
 
-    // --- FORM STATES ---
+
     const [personalInfo, setPersonalInfo] = useState({
         firstName: user?.firstName || "",
         lastName: user?.lastName || "",
@@ -57,30 +55,30 @@ export function ProfileCompletion({
 
     const [reference, setReference] = useState({
         howDidYouHearAboutUs: "",
-        referralDetail: "",   
+        referralDetail: "",
         socialMediaOther: "",
-        interestedServices: [],  
-        otherService: "",     
+        interestedServices: [],
+        otherService: "",
     });
 
     const [secondaryContact, setSecondaryContact] = useState({
-    contact: "",
-    contactType: "PHONE",
-    otp: "",
-    isOtpSent: false,
-    isVerified: false,
-    isLoading: false,
-    resendTimer: 120,     // seconds
-    canResend: false,
-});
+        contact: "",
+        contactType: "PHONE",
+        otp: "",
+        isOtpSent: false,
+        isVerified: false,
+        isLoading: false,
+        resendTimer: 120,
+        canResend: false,
+    });
 
 
-    // --- EFFECTS ---
+
     useEffect(() => {
         const fetchCountries = async () => {
             try {
                 const data = await getAllCountries();
-                // @ts-ignore
+
                 setCountries(data.hashSet || []);
             } catch (error) {
                 console.error("Failed to fetch countries:", error);
@@ -111,52 +109,52 @@ export function ProfileCompletion({
     }, [user]);
 
     useEffect(() => {
-    // Only run when we ENTER step 4
-    if (currentStep === 4 && !secondaryContact.isOtpSent) {
-        handleSendOtp();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [currentStep, secondaryContact.isOtpSent]);
-useEffect(() => {
-    // Auto verify when OTP reaches 6 digits
-    if (
-        currentStep === 4 &&
-        secondaryContact.otp.length === 6 &&
-        !secondaryContact.isVerified &&
-        !isVerifying
-    ) {
-        handleVerifyOtp();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [secondaryContact.otp, currentStep, secondaryContact.isVerified, isVerifying]);
 
-useEffect(() => {
-    if (!secondaryContact.isOtpSent || secondaryContact.canResend) return;
+        if (currentStep === 4 && !secondaryContact.isOtpSent) {
+            handleSendOtp();
+        }
 
-    const timer = setInterval(() => {
-        setSecondaryContact((prev) => {
-            if (prev.resendTimer <= 1) {
+    }, [currentStep, secondaryContact.isOtpSent]);
+    useEffect(() => {
+
+        if (
+            currentStep === 4 &&
+            secondaryContact.otp.length === 6 &&
+            !secondaryContact.isVerified &&
+            !isVerifying
+        ) {
+            handleVerifyOtp();
+        }
+
+    }, [secondaryContact.otp, currentStep, secondaryContact.isVerified, isVerifying]);
+
+    useEffect(() => {
+        if (!secondaryContact.isOtpSent || secondaryContact.canResend) return;
+
+        const timer = setInterval(() => {
+            setSecondaryContact((prev) => {
+                if (prev.resendTimer <= 1) {
+                    return {
+                        ...prev,
+                        resendTimer: 0,
+                        canResend: true,
+                    };
+                }
+
                 return {
                     ...prev,
-                    resendTimer: 0,
-                    canResend: true,
+                    resendTimer: prev.resendTimer - 1,
                 };
-            }
+            });
+        }, 1000);
 
-            return {
-                ...prev,
-                resendTimer: prev.resendTimer - 1,
-            };
-        });
-    }, 1000);
-
-    return () => clearInterval(timer);
-}, [secondaryContact.isOtpSent, secondaryContact.canResend]);
+        return () => clearInterval(timer);
+    }, [secondaryContact.isOtpSent, secondaryContact.canResend]);
 
 
 
 
-    // --- HELPERS ---
+
     const countyList = location.country === "Kenya" ? Object.keys(counties) : [];
     const subCountyList = (location.country === "Kenya" && location.county)
         ? counties[location.county as keyof typeof counties] || []
@@ -164,7 +162,7 @@ useEffect(() => {
 
     const isOrganizationType = accountType === "ORGANIZATION" || accountType === "CONTRACTOR" || accountType === "HARDWARE";
 
-    // --- VALIDATION ---
+
     const validateStep1 = (): boolean => {
         if (accountType === "INDIVIDUAL") {
             return (
@@ -192,28 +190,28 @@ useEffect(() => {
     };
 
 
-const validateStep3 = (): boolean => {
-    if (!reference.howDidYouHearAboutUs) return false;
+    const validateStep3 = (): boolean => {
+        if (!reference.howDidYouHearAboutUs) return false;
 
-    if (["SOCIAL_MEDIA", "DIRECT_REFERRAL", "OTHER"].includes(reference.howDidYouHearAboutUs)) {
-        if (reference.referralDetail.trim().length < 2) return false;
-    }
-
-    // Only require services for CUSTOMER userType (not service providers like PROFESSIONAL, FUNDI, CONTRACTOR, HARDWARE)
-    const isCustomer = userType === "CUSTOMER" || (!userType && (accountType === "INDIVIDUAL" || accountType === "ORGANIZATION"));
-    const isServiceProvider = userType && ["CONTRACTOR", "FUNDI", "PROFESSIONAL", "HARDWARE"].includes(userType);
-
-    if (isCustomer && !isServiceProvider) {
-        if (reference.interestedServices.length === 0) return false;
-
-        // If "Other" selected → require specification
-        if (reference.interestedServices.includes("Other")) {
-            if (!reference.otherService?.trim()) return false;
+        if (["SOCIAL_MEDIA", "DIRECT_REFERRAL", "OTHER"].includes(reference.howDidYouHearAboutUs)) {
+            if (reference.referralDetail.trim().length < 2) return false;
         }
-    }
 
-    return true;
-};
+
+        const isCustomer = userType === "CUSTOMER" || (!userType && (accountType === "INDIVIDUAL" || accountType === "ORGANIZATION"));
+        const isServiceProvider = userType && ["CONTRACTOR", "FUNDI", "PROFESSIONAL", "HARDWARE"].includes(userType);
+
+        if (isCustomer && !isServiceProvider) {
+            if (reference.interestedServices.length === 0) return false;
+
+
+            if (reference.interestedServices.includes("Other")) {
+                if (!reference.otherService?.trim()) return false;
+            }
+        }
+
+        return true;
+    };
 
 
     const validateStep4 = (): boolean => {
@@ -254,14 +252,14 @@ const validateStep3 = (): boolean => {
         try {
             setTimeout(() => {
                 toast.success(`OTP sent to ${secondaryContact.contact}`);
-               setSecondaryContact((prev) => ({
-    ...prev,
-    isOtpSent: true,
-    isLoading: false,
-    otp: "",
-    resendTimer: 120,
-    canResend: false,
-}));
+                setSecondaryContact((prev) => ({
+                    ...prev,
+                    isOtpSent: true,
+                    isLoading: false,
+                    otp: "",
+                    resendTimer: 120,
+                    canResend: false,
+                }));
 
             }, 1000);
         } catch (error: any) {
@@ -277,11 +275,11 @@ const validateStep3 = (): boolean => {
         }
         setIsVerifying(true);
         try {
-            // Simulate API call with setTimeout wrapped in Promise
+
             await new Promise<void>((resolve, reject) => {
                 setTimeout(() => {
-                    // Mock verification - in production, this would validate with backend
-                    const isValid = true; // Mock: always succeeds
+
+                    const isValid = true;
                     if (isValid) {
                         toast.success("Contact verified successfully!");
                         setSecondaryContact((prev) => ({ ...prev, isVerified: true, isLoading: false }));
@@ -337,7 +335,7 @@ const validateStep3 = (): boolean => {
         { icon: ShieldCheck, label: "Verify" }
     ];
 
-    // Social media options for the new dropdown
+
     const socialPlatforms = [
         "Facebook",
         "Instagram",
@@ -346,18 +344,18 @@ const validateStep3 = (): boolean => {
         "WhatsApp",
         "YouTube",
         "LinkedIn",
-       "Other",
+        "Other",
     ];
     const customerServices = [
-    "Plumbing",
-    "Electrical",
-    "Carpentry",
-    "Painting",
-    "Masonry",
-    "Interior Design",
-    "Cleaning",
-    "Other",
-];
+        "Plumbing",
+        "Electrical",
+        "Carpentry",
+        "Painting",
+        "Masonry",
+        "Interior Design",
+        "Cleaning",
+        "Other",
+    ];
 
 
     return (
@@ -501,17 +499,17 @@ const validateStep3 = (): boolean => {
                             </div>
                             <div className="space-y-2">
                                 <Label>Country *</Label>
-            <div className="w-full border border-gray-300 py-3 px-3 rounded-md bg-gray-50 flex items-center gap-2">
-                    <div className="kenyanimg">
-                        <img
-                        src="/src/assets/kenyan flag.png"
-                        alt="Kenya Flag"
-                        height="10"
-                        width="30"
-                        />
-                    </div>
-                    <span className="text-gray-700 font-medium">Kenya</span>
-            </div>
+                                <div className="w-full border border-gray-300 py-3 px-3 rounded-md bg-gray-50 flex items-center gap-2">
+                                    <div className="kenyanimg">
+                                        <img
+                                            src="/src/assets/kenyan flag.png"
+                                            alt="Kenya Flag"
+                                            height="10"
+                                            width="30"
+                                        />
+                                    </div>
+                                    <span className="text-gray-700 font-medium">Kenya</span>
+                                </div>
 
                             </div>
                             {location.country === "Kenya" && (
@@ -524,7 +522,7 @@ const validateStep3 = (): boolean => {
                                         <SelectTrigger className="w-full border-gray-300 h-auto py-3">
                                             <SelectValue placeholder="Select County" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-white h-60">
+                                        <SelectContent className="bg-white h-60 scrollbar-hide">
                                             {countyList.map((c) => (
                                                 <SelectItem key={c} value={c}>{c}</SelectItem>
                                             ))}
@@ -542,7 +540,7 @@ const validateStep3 = (): boolean => {
                                         <SelectTrigger className="w-full border-gray-300 h-auto py-3">
                                             <SelectValue placeholder="Select Sub-County" />
                                         </SelectTrigger>
-                                        <SelectContent className="bg-white h-60">
+                                        <SelectContent className="bg-white h-60 scrollbar-hide">
                                             {subCountyList.map((sc) => (
                                                 <SelectItem key={sc} value={sc}>{sc}</SelectItem>
                                             ))}
@@ -571,134 +569,134 @@ const validateStep3 = (): boolean => {
                         </div>
                     )}
 
-                {currentStep === 3 && (
-  <div className="space-y-5 animate-fade-in">
-    {/* Header */}
-    <div className="text-center mb-6">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-50 mb-4">
-        <MessageSquare className="h-8 w-8 text-violet-600" />
-      </div>
-      <h3 className="text-xl font-bold text-gray-800">Reference Information</h3>
-      <p className="text-sm text-gray-500 mt-1">How did you find us?</p>
-    </div>
+                    {currentStep === 3 && (
+                        <div className="space-y-5 animate-fade-in">
+                            {/* Header */}
+                            <div className="text-center mb-6">
+                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-50 mb-4">
+                                    <MessageSquare className="h-8 w-8 text-violet-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-800">Reference Information</h3>
+                                <p className="text-sm text-gray-500 mt-1">How did you find us?</p>
+                            </div>
 
-    {/* How did you hear about us */}
-    <div className="space-y-2">
-      <Label>How did you hear about us? *</Label>
-      <Select
-        value={reference.howDidYouHearAboutUs}
-        onValueChange={(value) =>
-          setReference({ ...reference, howDidYouHearAboutUs: value, referralDetail: "" })
-        }
-      >
-        <SelectTrigger className="w-full border-gray-300 py-3 h-auto">
-          <SelectValue placeholder="Select an option" />
-        </SelectTrigger>
-        <SelectContent className="bg-white">
-          <SelectItem value="SEARCH_ENGINE">Search Engine (Google, Bing)</SelectItem>
-          <SelectItem value="SOCIAL_MEDIA">Social Media</SelectItem>
-          <SelectItem value="WORD_OF_MOUTH">Word of Mouth</SelectItem>
-          <SelectItem value="ADVERTISEMENT">Advertisement</SelectItem>
-          <SelectItem value="DIRECT_REFERRAL">Direct Referral</SelectItem>
-          <SelectItem value="OTHER">Other</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
+                            {/* How did you hear about us */}
+                            <div className="space-y-2">
+                                <Label>How did you hear about us? *</Label>
+                                <Select
+                                    value={reference.howDidYouHearAboutUs}
+                                    onValueChange={(value) =>
+                                        setReference({ ...reference, howDidYouHearAboutUs: value, referralDetail: "" })
+                                    }
+                                >
+                                    <SelectTrigger className="w-full border-gray-300 py-3 h-auto">
+                                        <SelectValue placeholder="Select an option" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white scrollbar-hide">
+                                        <SelectItem value="SEARCH_ENGINE">Search Engine (Google, Bing)</SelectItem>
+                                        <SelectItem value="SOCIAL_MEDIA">Social Media</SelectItem>
+                                        <SelectItem value="WORD_OF_MOUTH">Word of Mouth</SelectItem>
+                                        <SelectItem value="ADVERTISEMENT">Advertisement</SelectItem>
+                                        <SelectItem value="DIRECT_REFERRAL">Direct Referral</SelectItem>
+                                        <SelectItem value="OTHER">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-    {/* Referral Details */}
-    {["SOCIAL_MEDIA", "DIRECT_REFERRAL", "OTHER"].includes(reference.howDidYouHearAboutUs) && (
-      <div className="space-y-2 animate-fade-in">
-        <Label>
-          {reference.howDidYouHearAboutUs === "SOCIAL_MEDIA"
-            ? "Which platform did you see us on?"
-            : reference.howDidYouHearAboutUs === "DIRECT_REFERRAL"
-            ? "Who referred you?"
-            : "Please specify the platform you saw us on"} *
-        </Label>
+                            {/* Referral Details */}
+                            {["SOCIAL_MEDIA", "DIRECT_REFERRAL", "OTHER"].includes(reference.howDidYouHearAboutUs) && (
+                                <div className="space-y-2 animate-fade-in">
+                                    <Label>
+                                        {reference.howDidYouHearAboutUs === "SOCIAL_MEDIA"
+                                            ? "Which platform did you see us on?"
+                                            : reference.howDidYouHearAboutUs === "DIRECT_REFERRAL"
+                                                ? "Who referred you?"
+                                                : "Please specify the platform you saw us on"} *
+                                    </Label>
 
-        {reference.howDidYouHearAboutUs === "SOCIAL_MEDIA" ? (
-          <Select
-            value={reference.referralDetail}
-            onValueChange={(value) => setReference({ ...reference, referralDetail: value })}
-          >
-            <SelectTrigger className="w-full border-gray-300 py-3 h-auto">
-              <SelectValue placeholder="Select social platform" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {socialPlatforms.map((platform) => (
-                <SelectItem key={platform} value={platform}>
-                  {platform}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            value={reference.referralDetail}
-            onChange={(e) => setReference({ ...reference, referralDetail: e.target.value })}
-            placeholder="Enter details..."
-            className="w-full border-gray-300"
-          />
-        )}
+                                    {reference.howDidYouHearAboutUs === "SOCIAL_MEDIA" ? (
+                                        <Select
+                                            value={reference.referralDetail}
+                                            onValueChange={(value) => setReference({ ...reference, referralDetail: value })}
+                                        >
+                                            <SelectTrigger className="w-full border-gray-300 py-3 h-auto">
+                                                <SelectValue placeholder="Select social platform" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-white scrollbar-hide">
+                                                {socialPlatforms.map((platform) => (
+                                                    <SelectItem key={platform} value={platform}>
+                                                        {platform}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <Input
+                                            value={reference.referralDetail}
+                                            onChange={(e) => setReference({ ...reference, referralDetail: e.target.value })}
+                                            placeholder="Enter details..."
+                                            className="w-full border-gray-300"
+                                        />
+                                    )}
 
-        {reference.howDidYouHearAboutUs === "SOCIAL_MEDIA" &&
-          reference.referralDetail === "Other" && (
-            <div className="space-y-2 mt-2">
-              <Label>Please specify *</Label>
-              <Input
-                value={reference.socialMediaOther}
-                onChange={(e) =>
-                  setReference({ ...reference, socialMediaOther: e.target.value })
-                }
-                placeholder="Please specify the social media platform"
-                className="w-full border-gray-300"
-              />
-            </div>
-          )}
-      </div>
-    )}
+                                    {reference.howDidYouHearAboutUs === "SOCIAL_MEDIA" &&
+                                        reference.referralDetail === "Other" && (
+                                            <div className="space-y-2 mt-2">
+                                                <Label>Please specify *</Label>
+                                                <Input
+                                                    value={reference.socialMediaOther}
+                                                    onChange={(e) =>
+                                                        setReference({ ...reference, socialMediaOther: e.target.value })
+                                                    }
+                                                    placeholder="Please specify the social media platform"
+                                                    className="w-full border-gray-300"
+                                                />
+                                            </div>
+                                        )}
+                                </div>
+                            )}
 
-    {/* CUSTOMER ONLY: Interested Services - hide for service providers */}
-{(userType === "CUSTOMER" || (!userType && (accountType === "INDIVIDUAL" || accountType === "ORGANIZATION"))) &&
- !(userType && ["CONTRACTOR", "FUNDI", "PROFESSIONAL", "HARDWARE"].includes(userType)) && (
+                            {/* CUSTOMER ONLY: Interested Services - hide for service providers */}
+                            {(userType === "CUSTOMER" || (!userType && (accountType === "INDIVIDUAL" || accountType === "ORGANIZATION"))) &&
+                                !(userType && ["CONTRACTOR", "FUNDI", "PROFESSIONAL", "HARDWARE"].includes(userType)) && (
 
-      <div className="space-y-2 mt-6 animate-fade-in">
-        <Label>What services are you interested in? *</Label>
-        <Select
-          value={reference.interestedServices[0] || ""}
-          onValueChange={(value) =>
-            setReference({ ...reference, interestedServices: [value] })
-          }
-        >
-          <SelectTrigger className="w-full border-gray-300 py-3 h-auto">
-            <SelectValue placeholder="Select a service" />
-          </SelectTrigger>
-          <SelectContent className="bg-white">
-            {customerServices.map((service) => (
-              <SelectItem key={service} value={service}>
-                {service}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {/* Show input only when "Other" is selected */}
-{reference.interestedServices.includes("Other") && (
-    <div className="mt-3 space-y-2">
-        <Label>Please specify the other service *</Label>
-        <Input
-            value={reference.otherService}
-            onChange={(e) =>
-                setReference({ ...reference, otherService: e.target.value })
-            }
-            placeholder="Enter the specific service you're looking for"
-            className="w-full border-gray-300"
-        />
-    </div>
-)}
-      </div>
-    )}
-  </div>
-)}
+                                    <div className="space-y-2 mt-6 animate-fade-in">
+                                        <Label>What services are you interested in? *</Label>
+                                        <Select
+                                            value={reference.interestedServices[0] || ""}
+                                            onValueChange={(value) =>
+                                                setReference({ ...reference, interestedServices: [value] })
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full border-gray-300 py-3 h-auto">
+                                                <SelectValue placeholder="Select a service" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-white scrollbar-hide">
+                                                {customerServices.map((service) => (
+                                                    <SelectItem key={service} value={service}>
+                                                        {service}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {/* Show input only when "Other" is selected */}
+                                        {reference.interestedServices.includes("Other") && (
+                                            <div className="mt-3 space-y-2">
+                                                <Label>Please specify the other service *</Label>
+                                                <Input
+                                                    value={reference.otherService}
+                                                    onChange={(e) =>
+                                                        setReference({ ...reference, otherService: e.target.value })
+                                                    }
+                                                    placeholder="Enter the specific service you're looking for"
+                                                    className="w-full border-gray-300"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                        </div>
+                    )}
 
                     {currentStep === 4 && (
                         <div className="space-y-5 animate-fade-in">
@@ -754,32 +752,32 @@ const validateStep3 = (): boolean => {
                                         />
                                     </div>
                                     {secondaryContact.isOtpSent && !secondaryContact.canResend && (
-    <p className="text-center text-sm text-gray-500">
-        Resend code in{" "}
-        <span className="font-medium text-gray-700">
-            {Math.floor(secondaryContact.resendTimer / 60)}:
-            {String(secondaryContact.resendTimer % 60).padStart(2, "0")}
-        </span>
-    </p>
-)}
-{secondaryContact.canResend && (
-    <Button
-        onClick={handleSendOtp}
-        variant="outline"
-          className="w-full h-12 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all duration-200"
-    >
-        Resend Verification Code
-    </Button>
-)}
+                                        <p className="text-center text-sm text-gray-500">
+                                            Resend code in{" "}
+                                            <span className="font-medium text-gray-700">
+                                                {Math.floor(secondaryContact.resendTimer / 60)}:
+                                                {String(secondaryContact.resendTimer % 60).padStart(2, "0")}
+                                            </span>
+                                        </p>
+                                    )}
+                                    {secondaryContact.canResend && (
+                                        <Button
+                                            onClick={handleSendOtp}
+                                            variant="outline"
+                                            className="w-full h-12 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all duration-200"
+                                        >
+                                            Resend Verification Code
+                                        </Button>
+                                    )}
 
 
 
                                     {isVerifying && (
-    <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Verifying code...
-    </div>
-)}
+                                        <div className="flex justify-center items-center gap-2 text-sm text-gray-500">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Verifying code...
+                                        </div>
+                                    )}
 
                                     {/* <Button
                                         onClick={handleVerifyOtp}
@@ -843,7 +841,7 @@ const validateStep3 = (): boolean => {
                 </div>
             </div>
         </div>
-        
+
     );
 }
 
