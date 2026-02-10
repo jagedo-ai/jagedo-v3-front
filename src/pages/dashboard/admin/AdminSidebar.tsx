@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
     ChevronFirst, Users, Briefcase, Home, ShoppingCart, LayoutDashboard,
-    Package, Eye, Tag, Settings, MapPin, User, Hammer, Banknote, ChevronDown, ChartNoAxesCombined
+    Package, Eye, Tag, Settings, MapPin, User, Hammer, Banknote, ChevronDown, ChartNoAxesCombined, FileText
 } from "lucide-react";
 
 const SidebarContext = createContext();
@@ -33,6 +33,8 @@ const sidebarItems = [
                 ]
             },
             { title: "Analytics", icon: ChartNoAxesCombined, href: "/dashboard/admin/analytics", color: "#FB3C47" },
+            { title: "Reports", icon: FileText, href: "/dashboard/admin/reports", color: "#14B8A6" },
+
         ]
     }
 ];
@@ -156,3 +158,7 @@ export function SidebarItem({ icon, text, href, active, submenu }) {
         </Link>
     );
 }
+
+
+
+
