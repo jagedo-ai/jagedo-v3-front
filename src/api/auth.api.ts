@@ -35,6 +35,15 @@ export const initiateRegistraion = async (data: any) => {
     return response;
 }
 
+//Verify email
+export const verifyEmail = async (data: any) => {
+    const response = await axios.post(
+        `${import.meta.env.VITE_SERVER_URL}/api/auth/email`,
+        data
+    );
+    return response;
+}
+
 export const handleCompleteRegistration = async (data: any) => {
     const response = await axios.post(
         `${import.meta.env.VITE_SERVER_URL}/api/auth/complete-registration`,

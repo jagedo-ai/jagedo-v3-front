@@ -9,7 +9,8 @@ import { CustomerSignupForm } from "@/components/customer-signup-form";
 import { ProfileCompletionModal } from "@/components/profile 2.0/ProfileCompletionModal";
 import {
     initiateRegistraion,
-    resendOtp
+    resendOtp,
+    handleCompleteRegistration,
 } from "@/api/auth.api";
 import { toast, Toaster } from "sonner";
 
@@ -17,8 +18,8 @@ export default function CustomerSignup() {
     const navigate = useNavigate();
     const { setUser, setIsLoggedIn } = useGlobalContext();
     const [currentStep, setCurrentStep] = useState(1);
+
     
-    // New States for Profile Completion
     const [showProfileCompletionModal, setShowProfileCompletionModal] = useState(false);
     const [registeredUser, setRegisteredUser] = useState<any>(null);
 
@@ -44,11 +45,11 @@ export default function CustomerSignup() {
         estate: "",
         password: "",
         confirmPassword: "",
-        agreeToTerms: false //mock for testing. Can be removed afterwards
+        agreeToTerms: false
     });
 
 
-    //const totalSteps = formData.accountType === "ORGANIZATION" ? 9 : 8;
+    
     const totalSteps = 6;
 
     const updateFormData = (data: Partial<typeof formData>) => {
@@ -84,7 +85,7 @@ export default function CustomerSignup() {
                 toast.error(`Failed To Send OTP: ${response.data.message}`);
             }
         } catch (error: any) {
-            toast.error(`Error sending OTP: ${error.response.data.message}`);
+            toast.error(`Error sending OTP: ${error.response?.data?.message || error.message}`);
             throw error;
         }
     };
@@ -110,58 +111,45 @@ export default function CustomerSignup() {
                 toast.error(`Failed To Send OTP: ${response.data.message}`);
             }
         } catch (error: any) {
-            toast.error(`Error sending OTP: ${error.response.data.message}`);
+            toast.error(`Error sending OTP: ${error.response?.data?.message || error.message}`);
             throw error;
         }
     };
 
     const handleSubmit = async () => {
-        // 1. Prepare the user object
-        const newUser = {
-            id: crypto.randomUUID(),
+        
+        const newUserPayload = {
             email: formData.email,
             password: formData.password,
             userType: "CUSTOMER",
             accountType: formData.accountType,
             phone: formData.phone,
-            profileCompleted: false
-        }
+        };
+
         try {
-            // 2. mock db save
-            const exisitingUsers = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
+            const response = await handleCompleteRegistration(newUserPayload);
 
-            if (exisitingUsers.find((u: any) => u.email === newUser.email)) {
-                toast.error("User with this email already exists!");
-                return;
-            }
-            exisitingUsers.push(newUser);
-            localStorage.setItem("mock_users_db", JSON.stringify(exisitingUsers));
-            localStorage.setItem("otpDeliveryMethod", formData.otpMethod);
-
-           // 3. successs message and redirect
-            const response = {
-                data: {
-                    success: true,
-                    user: newUser,
-                    accessToken: "mock_access_token" + newUser.id
-                }
-            };
-
-            // 4. Show Profile Completion Modal instead of immediate redirect
-             if (response.data.success) {
+            if (response.data.success) {
                 toast.success("Account created successfully. Please complete your profile.");
-                setRegisteredUser(newUser);
+                setRegisteredUser(response.data.user);
+
+                
+                if (response.data.accessToken) {
+                    localStorage.setItem("token", response.data.accessToken);
+                }
+
                 setShowProfileCompletionModal(true);
-             }
-           
+            } else {
+                toast.error(response.data.message || "Registration failed");
+            }
+
         } catch (error: any) {
-            toast.error("An error occurred during mock registration");
+            toast.error(error.response?.data?.message || "An error occurred during registration");
         }
     };
 
     const handleProfileComplete = (profileData: any) => {
-        // Here we would normally save the profile data to the backend
-        // For now, we update the mock user and local storage
+        
 
         const updatedUser = {
             ...registeredUser,
@@ -169,23 +157,16 @@ export default function CustomerSignup() {
             profileCompleted: true
         };
 
-        // Update in mock DB
-        const exisitingUsers = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
-        const userIndex = exisitingUsers.findIndex((u: any) => u.email === updatedUser.email);
-        if (userIndex !== -1) {
-            exisitingUsers[userIndex] = updatedUser;
-            localStorage.setItem("mock_users_db", JSON.stringify(exisitingUsers));
-        }
-
-        // Login
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-        localStorage.setItem("token", "mock_access_token" + updatedUser.id);
+        
         setUser(updatedUser);
         setIsLoggedIn(true);
+        if (updatedUser) {
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
 
         toast.success("Profile completed! Redirecting to dashboard...");
         setShowProfileCompletionModal(false);
-        
+
         setTimeout(() => {
             navigate("/dashboard/customer");
         }, 1500);
@@ -240,6 +221,6 @@ export default function CustomerSignup() {
 
             <GenericFooter />
         </div>
-        
+
     );
 }

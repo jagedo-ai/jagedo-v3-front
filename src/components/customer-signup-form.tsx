@@ -4,12 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast, Toaster } from "sonner"
-import { verifyOtp } from "@/api/auth.api"
+import { verifyOtp, verifyEmail } from "@/api/auth.api"
 import GoogleSignIn from "@/components/GoogleSignIn";
 import { cn } from "@/lib/utils";
-import { getPasswordStrength } from "./PasswordStrength";
 interface CustomerSignupFormProps {
   currentStep: number
   formData: any
@@ -86,20 +84,44 @@ export function CustomerSignupForm({
 
 
 
-
   useEffect(() => {
     if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
       setEmailStatus('idle');
       return;
     }
-    setEmailStatus('checking');
-    const timer = setTimeout(() => {
-      const existingUsers = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
-      const emailExists = existingUsers.some((u: any) => u.email === formData.email);
-      setEmailStatus(emailExists ? 'taken' : 'available');
-    }, 500);
-    return () => clearTimeout(timer);
+
+    const checkTimeout = setTimeout(async () => {
+      setEmailStatus('checking');
+      try {
+        const response = await verifyEmail({ email: formData.email });
+        
+        const message = response.data.message?.toLowerCase() || "";
+
+        if (message.includes("not found") || message.includes("does not exist") || (response.data.success === false && message.includes("user"))) {
+          setEmailStatus('available');
+        } else if (response.data.success && !message.includes("not found")) {
+          
+          setEmailStatus('taken');
+        } else {
+          
+          setEmailStatus('taken');
+        }
+
+      } catch (error: any) {
+        
+        if (error.response && error.response.status === 404) {
+          setEmailStatus('available');
+        } else {
+          console.error("Email check failed", error);
+          setEmailStatus('idle');
+        }
+      }
+    }, 800);
+
+    return () => clearTimeout(checkTimeout);
   }, [formData.email]);
+
+
 
   const validateStep = () => {
     const newErrors: Record<string, string> = {}
@@ -158,13 +180,8 @@ export function CustomerSignupForm({
   const handleContinue = async () => {
     if (validateStep()) {
 
-
       if (currentStep === 4) {
-        toast.success("OTP sent successfully (placeholder)");
-        setOtpTimer(120);
-        setTimerActive(true);
-        setHasInitialOtpBeenSent(true);
-        nextStep();
+        await handleSendOTP();
         return;
       }
 
@@ -182,10 +199,14 @@ export function CustomerSignupForm({
     if (validateStep()) {
       setIsSubmitting(true)
 
-      setTimeout(() => {
-        handleSubmit()
-        setIsSubmitting(false)
-      }, 1500)
+
+      handleSubmit()
+
+
+
+
+
+
     }
   }
 
@@ -205,8 +226,7 @@ export function CustomerSignupForm({
 
   const handleSendOTP = async () => {
     setIsSubmitting(true)
-    setOtpTimer(120);
-    setTimerActive(true);
+
     if (!formData.accountType) {
       toast.error("Please select an account type")
       setIsSubmitting(false)
@@ -225,11 +245,20 @@ export function CustomerSignupForm({
 
     try {
       await handleInitiateRegistration()
+
+      setOtpTimer(120);
+      setTimerActive(true);
       setHasInitialOtpBeenSent(true);
+
+
+      nextStep();
+
     } catch (error: any) {
       console.error(error);
       setTimerActive(false);
       setOtpTimer(0);
+
+      toast.error(error.response?.data?.message || "Failed to send OTP");
     } finally {
       setIsSubmitting(false)
     }
@@ -253,11 +282,25 @@ export function CustomerSignupForm({
 
   const handleVerifyOTP = async () => {
     setIsSubmitting(true)
+    try {
+      const response = await verifyOtp({
+        email: formData.email,
+        phoneNumber: formData.phone,
+        otp: formData.otp,
+      });
 
-    setIsOtpVerified(true);
-    toast.success("Bypassed verification for testing!");
-    setIsSubmitting(false);
-    nextStep();
+      if (response.data.success) {
+        setIsOtpVerified(true);
+        toast.success("OTP Verified Successfully");
+        nextStep();
+      } else {
+        toast.error(response.data.message || "Invalid OTP");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Error verifying OTP");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
 
@@ -424,10 +467,10 @@ export function CustomerSignupForm({
                   value={formData.phone}
                   onChange={(e) => {
                     const value = e.target.value;
-                    // Strip non-numeric characters
+
                     const cleanValue = value.replace(/\D/g, '').slice(0, 9);
 
-                    // Validation: Must start with 1 or 7 if data is entered
+
                     if (cleanValue.length > 0 && !/^[17]/.test(cleanValue)) {
                       return;
                     }
@@ -614,7 +657,6 @@ export function CustomerSignupForm({
                   </p>
                 )}
 
-                {/* Send verification code button removed - OTP is auto-sent when entering this step */}
               </div>
             </div>
           </div>
