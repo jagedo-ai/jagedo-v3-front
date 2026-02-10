@@ -14,6 +14,7 @@ import { UploadCloud, FileText, CheckCircle } from "lucide-react";
 import { FiCheck } from "react-icons/fi";
 import { SquarePen } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { getAdminRole } from "@/config/adminRoles";
 
 
  // Specialization options by user type
@@ -388,7 +389,9 @@ const updateUserInLocalStorage = (
 };
 
 const Experience = ({ userData }) => {
-  
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   console.log("User Data: ", userData);
   // const axiosInstance = useAxiosWithAuth(import.meta.env.VITE_SERVER_URL)
   const [isEditingFields, setIsEditingFields] = useState(false);
@@ -1436,6 +1439,11 @@ const removeCategory = (index: number) => {
                     };
                     userData.userProfile = updatedProfile;
                     updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
+                    // Associate/Agent: set user to partially verified
+                    if (adminRole === "ASSOCIATE" || adminRole === "AGENT") {
+                      updateUserInLocalStorage(userData.id, { status: "PARTIALLY_VERIFIED" });
+                      Object.assign(userData, { status: "PARTIALLY_VERIFIED" });
+                    }
                     toast.success("Experience section has been approved!");
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
