@@ -48,7 +48,7 @@ const BUILDING_WORKS_SPECIALIZATIONS = [
 ];
 
 const ContractorExperience = () => {
-  const { user } = useGlobalContext();
+  const { user, setUser } = useGlobalContext();
   //const axiosInstance = useAxiosWithAuth(import.meta.env.VITE_SERVER_URL);
 
   const [categories, setCategories] = useState<ContractorCategory[]>([]);
@@ -82,20 +82,6 @@ const ContractorExperience = () => {
     },
     
   ];
-useEffect(() => {
-  const handleProfileUpdate = (e: CustomEvent) => {
-    if (e.detail.type === "contractor") {
-      setSidebarStatus("complete"); // or whatever your sidebar state updater is
-    }
-  };
-
-  window.addEventListener("profileUpdated", handleProfileUpdate as EventListener);
-
-  return () => {
-    window.removeEventListener("profileUpdated", handleProfileUpdate as EventListener);
-  };
-}, []);
-
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user?.id) {
@@ -114,9 +100,28 @@ useEffect(() => {
           console.error("Error parsing stored data:", error);
         }
       }
-      // Start with empty data for new users (no prefilled mock data)
-      setCategories([]);
-      setProjects([]);
+      // Pre-populate from signup data if available
+      const contractorType = user?.userProfile?.contractorType || user?.contractorTypes || "";
+      if (contractorType) {
+        const initialCatId = crypto.randomUUID();
+        setCategories([{
+          id: initialCatId,
+          category: contractorType,
+          specialization: "",
+          categoryClass: "",
+          yearsOfExperience: "",
+        }]);
+        setProjects([{
+          id: crypto.randomUUID(),
+          categoryId: initialCatId,
+          projectName: `${contractorType} Project`,
+          projectFile: null,
+          referenceLetterFile: null,
+        }]);
+      } else {
+        setCategories([]);
+        setProjects([]);
+      }
       setIsLoadingProfile(false);
       // try {
       //   const response = await getProviderProfile(axiosInstance, user.id);
@@ -352,7 +357,27 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       error: (err: any) => err.response?.data?.message || "Failed to save experience."
     });
 
-    // Don't set submitted to true - keep the form visible so user can see their saved data
+    // Update user context so sidebar status recalculates
+    setUser((prev: any) => ({
+      ...prev,
+      userProfile: {
+        ...prev?.userProfile,
+        contractorType: categories[0]?.category || "",
+        licenseLevel: categories[0]?.categoryClass || "",
+        contractorExperiences: categories.map(c => ({
+          category: c.category,
+          specialization: c.specialization,
+          categoryClass: c.categoryClass,
+          yearsOfExperience: c.yearsOfExperience,
+        })),
+        contractorProjects: projects.filter(p => p.projectName.trim()).map(p => ({
+          projectName: p.projectName,
+          projectFile: typeof p.projectFile === 'string' ? p.projectFile : p.projectFile?.name || '',
+        })),
+      },
+    }));
+
+    window.dispatchEvent(new Event("storage"));
   } catch (err) {
     console.error(err);
   } finally {

@@ -407,7 +407,7 @@ const Experience = ({ userData }) => {
   const status = userData?.status;
 
   // Statuses that should prefill/show existing data
-  const PREFILL_STATUSES = ["COMPLETED", "VERIFIED", "PENDING", "RETURNED"];
+  const PREFILL_STATUSES = ["COMPLETED", "VERIFIED", "PENDING", "RETURNED", "INCOMPLETE"];
 
   // Initialize attachments based on user type
   const getInitialAttachments = () => {
@@ -649,6 +649,9 @@ const removeCategory = (index: number) => {
 
  
   // Dynamic field configurations based on user type
+  // Use editingFields when in edit mode so dependent dropdowns update correctly
+  const activeInfo = isEditingFields ? { ...info, ...editingFields } : info;
+
   const getFieldsConfig = () => {
     switch (userType) {
       case "FUNDI":
@@ -670,7 +673,7 @@ const removeCategory = (index: number) => {
           {
             name: "specialization",
             label: "Specialization",
-            options: FUNDI_SPECIALIZATIONS[info.skill as keyof typeof FUNDI_SPECIALIZATIONS] || [
+            options: FUNDI_SPECIALIZATIONS[activeInfo.skill as keyof typeof FUNDI_SPECIALIZATIONS] || [
               "Block Work & Brick Laying",
               "Plastering & Rendering",
               "Stone Masonry",
@@ -716,7 +719,7 @@ const removeCategory = (index: number) => {
           {
             name: "specialization",
             label: "Specialization",
-            options: PROFESSIONAL_SPECIALIZATIONS[info.profession as keyof typeof PROFESSIONAL_SPECIALIZATIONS] || [
+            options: PROFESSIONAL_SPECIALIZATIONS[activeInfo.profession as keyof typeof PROFESSIONAL_SPECIALIZATIONS] || [
               "Residential Architecture",
               "Commercial Architecture",
               "Industrial Architecture",
@@ -754,8 +757,8 @@ const removeCategory = (index: number) => {
           {
             name: "specialization",
             label: "Specialization",
-            options: CONTRACTOR_SPECIALIZATIONS[info.category as keyof typeof CONTRACTOR_SPECIALIZATIONS] || 
-              CONTRACTOR_SPECIALIZATIONS[info.contractorType as keyof typeof CONTRACTOR_SPECIALIZATIONS] || [
+            options: CONTRACTOR_SPECIALIZATIONS[activeInfo.category as keyof typeof CONTRACTOR_SPECIALIZATIONS] ||
+              CONTRACTOR_SPECIALIZATIONS[activeInfo.contractorType as keyof typeof CONTRACTOR_SPECIALIZATIONS] || [
               "Residential Construction",
               "Commercial Construction",
               "Industrial Construction",
@@ -1495,10 +1498,15 @@ const removeCategory = (index: number) => {
                         <select
                           value={editingFields[field.name] ?? fieldValue ?? ""}
                           onChange={(e) => {
-                            setEditingFields((prev) => ({
-                              ...prev,
-                              [field.name]: e.target.value,
-                            }));
+                            const newValue = e.target.value;
+                            setEditingFields((prev) => {
+                              const updated = { ...prev, [field.name]: newValue };
+                              // Reset specialization when parent field changes
+                              if (field.name === "skill" || field.name === "profession" || field.name === "category") {
+                                updated.specialization = "";
+                              }
+                              return updated;
+                            });
                           }}
                           className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                         >

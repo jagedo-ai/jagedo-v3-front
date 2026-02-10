@@ -207,8 +207,12 @@ export default function FundiSignup() {
             firstName: profileData.firstName || "",
             lastName: profileData.lastName || "",
             organizationName: profileData.organizationName || "",
+            skills: formData.skills || "",
             profileCompleted: true,
-            status: "INCOMPLETE" // Profile completed but pending document uploads
+            status: "INCOMPLETE", // Profile completed but pending document uploads
+            userProfile: {
+                skill: formData.skills || "",
+            }
         };
 
         // Update mock_users_db

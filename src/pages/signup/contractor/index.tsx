@@ -238,8 +238,12 @@ export default function ContractorSignup() {
             ...registeredUser,
             ...profileData,
             organizationName: profileData.organizationName || "",
+            contractorTypes: formData.contractorTypes || "",
             profileCompleted: true,
-            status: "INCOMPLETE"
+            status: "INCOMPLETE",
+            userProfile: {
+                contractorType: formData.contractorTypes || "",
+            }
         };
 
         const existingUsers = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
