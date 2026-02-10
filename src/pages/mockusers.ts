@@ -55,12 +55,46 @@ export const MOCK_USERS = [
     adminApproved: false,
     userProfile: { complete: false }
   },
-  // ✅ Admin user
+  // ✅ Super Admin
+  {
+    username: "superadmin@jagedo.co.ke",
+    password: "Admin@123",
+    userType: "ADMIN",
+    adminRole: "SUPER_ADMIN",
+    firstName: "Super",
+    lastName: "Admin",
+    adminApproved: true,
+    userProfile: { complete: true }
+  },
+  // ✅ Admin
   {
     username: "admin@jagedo.co.ke",
     password: "Admin@123",
     userType: "ADMIN",
+    adminRole: "ADMIN",
     firstName: "Admin",
+    lastName: "User",
+    adminApproved: true,
+    userProfile: { complete: true }
+  },
+  // ✅ Associate
+  {
+    username: "associate@jagedo.co.ke",
+    password: "Admin@123",
+    userType: "ADMIN",
+    adminRole: "ASSOCIATE",
+    firstName: "Associate",
+    lastName: "User",
+    adminApproved: true,
+    userProfile: { complete: true }
+  },
+  // ✅ Agent
+  {
+    username: "agent@jagedo.co.ke",
+    password: "Admin@123",
+    userType: "ADMIN",
+    adminRole: "AGENT",
+    firstName: "Agent",
     lastName: "User",
     adminApproved: true,
     userProfile: { complete: true }

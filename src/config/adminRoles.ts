@@ -4,7 +4,7 @@ export const ADMIN_ROLES: AdminRole[] = ["SUPER_ADMIN", "ADMIN", "ASSOCIATE", "A
 
 // Sidebar items each role can see (by title)
 const superAdminPermissions = [
-  "Home", "Jobs", "Orders", "Shop App", "Registers", "Analytics",
+  "Home", "Jobs", "Orders", "Shop App", "Registers", "Analytics", "Reports",
 ];
 
 const adminPermissions = [
@@ -30,9 +30,9 @@ export const rolePermissions: Record<AdminRole, string[]> = {
 // Routes each role is blocked from accessing (used for direct URL protection)
 export const roleBlockedRoutes: Record<AdminRole, string[]> = {
   SUPER_ADMIN: [],
-  ADMIN: ["/dashboard/admin/analytics"],
-  ASSOCIATE: ["/dashboard/admin/analytics"],
-  AGENT: ["/dashboard/admin/analytics"],
+  ADMIN: ["/dashboard/admin/analytics", "/dashboard/admin/reports"],
+  ASSOCIATE: ["/dashboard/admin/analytics", "/dashboard/admin/reports"],
+  AGENT: ["/dashboard/admin/analytics", "/dashboard/admin/reports"],
 };
 
 export function getAdminRole(user: { userType?: string; adminRole?: string } | null): AdminRole | null {
