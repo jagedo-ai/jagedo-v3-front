@@ -15,7 +15,7 @@ import { useGlobalContext } from "@/context/GlobalProvider";
 type FileOrUrl = File | string | null;
 
 interface ContractorCategory {
- id: string;
+  id: string;
   category: string;
   specialization: string;
   categoryClass: string;
@@ -29,6 +29,15 @@ interface ContractorProject {
   projectFile: FileOrUrl;
   referenceLetterFile: FileOrUrl;
 }
+// Mapping from signup slugs to CATEGORIES display names
+const CONTRACTOR_SLUG_TO_DISPLAY: Record<string, string> = {
+  "building-works": "Building Works",
+  "mechanical-works": "Mechanical Works",
+  "electrical-works": "Electrical Works",
+  "water-works": "Water Works",
+  "road-works": "Road Works",
+};
+
 const CATEGORIES = [
   "Electrical Works",
   "Mechanical Works",
@@ -46,6 +55,17 @@ const BUILDING_WORKS_SPECIALIZATIONS = [
   "Water & Drainage Works",
   "Steel Structures",
 ];
+
+// Resolve a slug or display name to a valid CATEGORIES display name
+const resolveContractorCategory = (raw: string): string => {
+  const trimmed = raw.trim();
+  // If it's already a known display name, return as-is
+  if (CATEGORIES.includes(trimmed)) return trimmed;
+  // Try slug mapping
+  if (CONTRACTOR_SLUG_TO_DISPLAY[trimmed]) return CONTRACTOR_SLUG_TO_DISPLAY[trimmed];
+  // Fallback: title-case the slug (e.g. "building-works" → "Building Works")
+  return trimmed.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+};
 
 const ContractorExperience = () => {
   const { user, setUser } = useGlobalContext();
@@ -68,7 +88,7 @@ const ContractorExperience = () => {
       yearsOfExperience: "5-10 years",
       isEditing: false,
     },
-    
+
   ];
 
   const prefilledProjects: ContractorProject[] = [
@@ -80,7 +100,7 @@ const ContractorExperience = () => {
       referenceLetterFile: "https://example.com/reference_letter_mall.pdf",
 
     },
-    
+
   ];
   useEffect(() => {
     const fetchProfile = async () => {
@@ -103,21 +123,32 @@ const ContractorExperience = () => {
       // Pre-populate from signup data if available
       const contractorType = user?.userProfile?.contractorType || user?.contractorTypes || "";
       if (contractorType) {
-        const initialCatId = crypto.randomUUID();
-        setCategories([{
-          id: initialCatId,
-          category: contractorType,
-          specialization: "",
-          categoryClass: "",
-          yearsOfExperience: "",
-        }]);
-        setProjects([{
-          id: crypto.randomUUID(),
-          categoryId: initialCatId,
-          projectName: `${contractorType} Project`,
-          projectFile: null,
-          referenceLetterFile: null,
-        }]);
+        // Split comma-separated slugs and map each to a display name
+        const slugs = contractorType.split(",").filter(Boolean);
+        const initialCategories: ContractorCategory[] = [];
+        const initialProjects: ContractorProject[] = [];
+
+        slugs.forEach((slug: string) => {
+          const displayName = resolveContractorCategory(slug);
+          const catId = crypto.randomUUID();
+          initialCategories.push({
+            id: catId,
+            category: displayName,
+            specialization: "",
+            categoryClass: "",
+            yearsOfExperience: "",
+          });
+          initialProjects.push({
+            id: crypto.randomUUID(),
+            categoryId: catId,
+            projectName: `${displayName} Project`,
+            projectFile: null,
+            referenceLetterFile: null,
+          });
+        });
+
+        setCategories(initialCategories);
+        setProjects(initialProjects);
       } else {
         setCategories([]);
         setProjects([]);
@@ -136,7 +167,7 @@ const ContractorExperience = () => {
       //           specialization: exp.specialization,
       //         categoryClass: exp.categoryClass,
       //         yearsOfExperience: exp.yearsOfExperience,
-              
+
       //         isEditing: false,
       //       }));
       //       setCategories(populatedCategories);
@@ -182,7 +213,7 @@ const ContractorExperience = () => {
 
   //       categoryClass: cat.categoryClass,
   //       yearsOfExperience: cat.yearsOfExperience,
-        
+
   //     }))
   //   );
 
@@ -200,13 +231,13 @@ const ContractorExperience = () => {
   //   });
   // };
   const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
 
   const updateExperienceOnServer = async (
     currentCategories: ContractorCategory[],
@@ -286,7 +317,7 @@ const ContractorExperience = () => {
       },
     ]);
   };
-const handleCategoryChange = (id: string, value: string) => {
+  const handleCategoryChange = (id: string, value: string) => {
     if (categories.some(c => c.category === value && c.id !== id)) {
       toast.error("You cannot select the same category twice.");
       return;
@@ -340,50 +371,51 @@ const handleCategoryChange = (id: string, value: string) => {
     if (projects.length <= 1) return toast.error("You must have at least one project.");
     setProjects(prev => prev.filter(proj => proj.id !== id));
   };
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  if (isReadOnly) return toast.error("Your approved profile cannot be modified.");
 
-  // Validation - only validate categories if there are any
-  if (categories.length > 0 && categories.some(c => !c.category || !c.categoryClass || !c.yearsOfExperience)) {
-    return toast.error("Please fill in all required fields for categories.");
-  }
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isReadOnly) return toast.error("Your approved profile cannot be modified.");
 
-  setIsSubmitting(true);
-  try {
-    await toast.promise(updateExperienceOnServer(categories, projects), {
-      loading: "Saving experience...",
-      success: "Experience saved successfully!",
-      error: (err: any) => err.response?.data?.message || "Failed to save experience."
-    });
+    // Validation - only validate categories if there are any
+    if (categories.length > 0 && categories.some(c => !c.category || !c.categoryClass || !c.yearsOfExperience)) {
+      return toast.error("Please fill in all required fields for categories.");
+    }
 
-    // Update user context so sidebar status recalculates
-    setUser((prev: any) => ({
-      ...prev,
-      userProfile: {
-        ...prev?.userProfile,
-        contractorType: categories[0]?.category || "",
-        licenseLevel: categories[0]?.categoryClass || "",
-        contractorExperiences: categories.map(c => ({
-          category: c.category,
-          specialization: c.specialization,
-          categoryClass: c.categoryClass,
-          yearsOfExperience: c.yearsOfExperience,
-        })),
-        contractorProjects: projects.filter(p => p.projectName.trim()).map(p => ({
-          projectName: p.projectName,
-          projectFile: typeof p.projectFile === 'string' ? p.projectFile : p.projectFile?.name || '',
-        })),
-      },
-    }));
+    setIsSubmitting(true);
+    try {
+      await toast.promise(updateExperienceOnServer(categories, projects), {
+        loading: "Saving experience...",
+        success: "Experience saved successfully!",
+        error: (err: any) => err.response?.data?.message || "Failed to save experience."
+      });
 
-    window.dispatchEvent(new Event("storage"));
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      // Update user context so sidebar status recalculates
+      setUser((prev: any) => ({
+        ...prev,
+        userProfile: {
+          ...prev?.userProfile,
+          contractorType: categories[0]?.category || "",
+          licenseLevel: categories[0]?.categoryClass || "",
+          contractorExperiences: categories.map(c => ({
+            category: c.category,
+            specialization: c.specialization,
+            categoryClass: c.categoryClass,
+            yearsOfExperience: c.yearsOfExperience,
+          })),
+          contractorProjects: projects.filter(p => p.projectName.trim()).map(p => ({
+            projectName: p.projectName,
+            projectFile: typeof p.projectFile === 'string' ? p.projectFile : p.projectFile?.name || '',
+          })),
+        },
+      }));
+
+      window.dispatchEvent(new Event("storage"));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
 
 
@@ -490,7 +522,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                         disabled={isReadOnly}
                       >
                         <option value="">Select Class</option>
-                        {["NCA 1","NCA 2","NCA 3","NCA 4","NCA 5"].map(c => <option key={c}>{c}</option>)}
+                        {["NCA 1", "NCA 2", "NCA 3", "NCA 4", "NCA 5"].map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
 
@@ -507,7 +539,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                         disabled={isReadOnly}
                       >
                         <option value="">Select Years</option>
-                        {["10+","5-10","3-5","1-3"].map(y => <option key={y}>{y}</option>)}
+                        {["10+", "5-10", "3-5", "1-3"].map(y => <option key={y}>{y}</option>)}
                       </select>
                     </div>
                   </div>
@@ -573,7 +605,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       </div>
     </div>
 
-    
+
   );
 };
 

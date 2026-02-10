@@ -127,10 +127,15 @@ export const useProfileCompletion = (userData: any, userType: string) => {
     const storageKey = `uploads_demo_${userData.id}`;
     const uploadedDocs = JSON.parse(localStorage.getItem(storageKey) || '{}');
 
-    // Check if ALL required documents exist and have truthy values
+    // Check if ALL required documents exist, have truthy values, and are not rejected/returned
     const allDocsUploaded = requiredDocs.length > 0 && requiredDocs.every(doc => {
       const value = uploadedDocs[doc];
-      return value && value !== '' && value !== null && value !== undefined;
+      if (!value || value === '' || value === null || value === undefined) return false;
+      // If the document has a status field, check it's not rejected or returned
+      if (typeof value === 'object' && value.status) {
+        return value.status !== 'rejected' && value.status !== 'reupload_requested';
+      }
+      return true;
     });
 
     status['account-uploads'] = allDocsUploaded ? 'complete' : 'incomplete';

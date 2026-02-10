@@ -72,12 +72,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         let allNotifications: Notification[] = [];
         try {
             if (serviceProviderTypes.includes(userType)) {
-                const [jobsResponse, ordersResponse] = await Promise.all([
+                const [jobsResult, ordersResult] = await Promise.allSettled([
                     getServiceProviderJobRequests(axiosInstance),
                     getProviderOrderRequests(axiosInstance)
                 ]);
 
-                const jobsData = jobsResponse.hashSet || [];
+                const jobsData = jobsResult.status === 'fulfilled' ? (jobsResult.value?.hashSet || []) : [];
                 setAllJobs(jobsData);
                 if (Array.isArray(jobsData)) {
                     const jobNotifications = jobsData.map((item: Job): Notification => ({
@@ -93,7 +93,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                     allNotifications = allNotifications.concat(jobNotifications);
                 }
 
-                const ordersData = ordersResponse.hashSet || [];
+                const ordersData = ordersResult.status === 'fulfilled' ? (ordersResult.value?.hashSet || []) : [];
                 setAllOrders(ordersData);
                 if (Array.isArray(ordersData)) {
                     const orderNotifications = ordersData.map((item: Order): Notification => ({
@@ -110,12 +110,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 }
 
             } else if (userType === 'customer') {
-                const [jobsResponse, ordersResponse] = await Promise.all([
+                const [jobsResult, ordersResult] = await Promise.allSettled([
                     getCustomerJobRequests(axiosInstance),
                     getOrderRequests(axiosInstance),
                 ]);
 
-                const jobsData = jobsResponse.hashSet || [];
+                const jobsData = jobsResult.status === 'fulfilled' ? (jobsResult.value?.hashSet || []) : [];
                 setAllJobs(jobsData);
                 if (Array.isArray(jobsData)) {
                     const jobNotifications = jobsData.map((item: Job): Notification => ({
@@ -131,13 +131,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                     allNotifications = allNotifications.concat(jobNotifications);
                 }
 
-                const ordersData = ordersResponse.hashSet || [];
+                const ordersData = ordersResult.status === 'fulfilled' ? (ordersResult.value?.hashSet || []) : [];
                 setAllOrders(ordersData);
                 if (Array.isArray(ordersData)) {
                     const orderNotifications = ordersData.map((item: Order): Notification => ({
                         id: `order-${item.id}`,
                         type: 'order',
-                        title: `Order: #${item.id.toString().slice(0, 8)}`, // Added .toString() for safety
+                        title: `Order: #${item.id.toString().slice(0, 8)}`,
                         message: `Your order status is now ${item.status}.`,
                         createdAt: item.createdAt,
                         time: formatTimeAgo(item.createdAt),

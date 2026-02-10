@@ -75,10 +75,15 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
     console.log('Uploaded docs:', uploadedDocs);
     const requiredDocs = getRequiredDocuments();
     
-    // Check if ALL required documents exist and have truthy values
+    // Check if ALL required documents exist, have truthy values, and are not rejected/returned
     const uploadsComplete = requiredDocs.length > 0 && requiredDocs.every(doc => {
       const value = uploadedDocs[doc];
-      return value && value !== '' && value !== null && value !== undefined;
+      if (!value || value === '' || value === null || value === undefined) return false;
+      // If the document has a status field, check it's not rejected or returned
+      if (typeof value === 'object' && value.status) {
+        return value.status !== 'rejected' && value.status !== 'reupload_requested';
+      }
+      return true;
     });
     
     console.log('Uploads complete:', uploadsComplete, 'Required:', requiredDocs, 'Uploaded:', uploadedDocs);
