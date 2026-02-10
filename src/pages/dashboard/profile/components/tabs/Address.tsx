@@ -4,6 +4,7 @@ import { toast, Toaster } from "sonner";
 import { counties } from "@/pages/data/counties";
 import { getUserAddress, updateUserAddress } from "@/api/fakeAddress.api";
 import { getAllCountries } from "@/api/countries.api";
+import { getAdminRole } from "@/config/adminRoles";
 
 const getInitialAddress = (userId: number | string, userData?: any) => {
   const saved = getUserAddress(userId);
@@ -28,6 +29,21 @@ const getInitialAddress = (userId: number | string, userData?: any) => {
 };
 
 const Address = ({ userData }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
+  if (adminRole === "AGENT") {
+    return (
+      <div className="bg-white flex">
+        <div className="w-full max-w-3xl items-center p-6">
+          <div className="p-8 text-center text-gray-500">
+            You do not have permission to view address information.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [isEditing, setIsEditing] = useState(false);
   const [address, setAddress] = useState(getInitialAddress(userData.id, userData));
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { getAdminRole } from "@/config/adminRoles";
 // import useAxiosWithAuth from "@/utils/axiosInterceptor";
 // import { getAllCustomers } from "@/api/provider.api";
 import { kenyanLocations } from "@/data/kenyaLocations";
@@ -56,6 +57,10 @@ const navItems = [
 ];
 
 export default function CustomersAdmin() {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+  const hideVerified = adminRole === "ASSOCIATE" || adminRole === "AGENT";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [activeTab, setActiveTab] = useState("Individual");
@@ -129,6 +134,9 @@ export default function CustomersAdmin() {
   }, []);
 
   const filteredCustomers = customers.filter((customer) => {
+    // Hide verified users from Associate and Agent roles
+    if (hideVerified && customer.adminApproved === true) return false;
+
     const matchesTab = activeTab === "Individual"
       ? customer.accountType === "INDIVIDUAL" || !customer.accountType
       : customer.accountType === "ORGANIZATION";
@@ -174,8 +182,14 @@ export default function CustomersAdmin() {
                   }`}
               >
                 {nav.name} ({nav.name === "Individual"
-                  ? customers.filter((c) => c.accountType === "INDIVIDUAL" || !c.accountType).length
-                  : customers.filter((c) => c.accountType === "ORGANIZATION").length
+                  ? customers.filter((c) => {
+                      if (hideVerified && c.adminApproved === true) return false;
+                      return c.accountType === "INDIVIDUAL" || !c.accountType;
+                    }).length
+                  : customers.filter((c) => {
+                      if (hideVerified && c.adminApproved === true) return false;
+                      return c.accountType === "ORGANIZATION";
+                    }).length
                 })
               </button>
             ))}
