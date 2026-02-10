@@ -85,5 +85,6 @@ export default function Unauthorized() {
                 </motion.div>
             </div>
         </div>
+        
     );
 }
