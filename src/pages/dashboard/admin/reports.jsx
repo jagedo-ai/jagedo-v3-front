@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   FileText,
   Users,
@@ -12,6 +12,7 @@ import {
   DollarSign,
   Download,
   X,
+  Megaphone,
 } from "lucide-react";
 
 /* ------------------ DATA ------------------ */
@@ -108,6 +109,54 @@ const DATASETS = {
       { type: "Product Orders", amount: "KES 1.9M" },
     ],
   },
+   /* ------------------ MARKETING ------------------ */
+  marketing: {
+    label: "Marketing Intelligence",
+    records: [
+      {
+        role: "Fundi",
+        source: "Facebook",
+        service: "Plumbing",
+        count: 120,
+      },
+      {
+        role: "Fundi",
+        source: "Instagram",
+        service: "Masonry",
+        count: 95,
+      },
+      {
+        role: "Contractor",
+        source: "Google",
+        service: "Building Works",
+        count: 88,
+      },
+      {
+        role: "Professional",
+        source: "LinkedIn",
+        service: "Architecture",
+        count: 54,
+      },
+      {
+        role: "Customer",
+        source: "WhatsApp",
+        service: "House Renovation",
+        count: 230,
+      },
+      {
+        role: "Hardware",
+        source: "Referral",
+        service: "Construction Materials",
+        count: 40,
+      },
+      {
+        role: "Customer",
+        source: "TikTok",
+        service: "Interior Design",
+        count: 140,
+      },
+    ],
+  },
 };
 
 /* ------------------ CSV EXPORT ------------------ */
@@ -162,7 +211,17 @@ function DetailModal({ title, records, onClose }) {
 export default function AdminReports() {
   const [selected, setSelected] = useState("totalUsers");
   const [modal, setModal] = useState(null);
+const [roleFilter, setRoleFilter] = useState("All");
+  const [sourceFilter, setSourceFilter] = useState("All");
 
+  const marketing = DATASETS.marketing.records;
+  const filteredMarketing = useMemo(() => {
+    return marketing.filter(
+      (m) =>
+        (roleFilter === "All" || m.role === roleFilter) &&
+        (sourceFilter === "All" || m.source === sourceFilter)
+    );
+  }, [roleFilter, sourceFilter]);
   const cards = [
     { id: "totalUsers", title: "Total Users", value: "12,450", icon: Users },
     { id: "customers", title: "Customers", value: "7,230", icon: UserCheck },
@@ -177,6 +236,12 @@ export default function AdminReports() {
     { id: "suspended", title: "Suspended", value: "87", icon: UserX },
     { id: "otp", title: "OTP Requests", value: "38,120", icon: Key },
     { id: "sales", title: "Total Sales", value: "KES 4.2M", icon: DollarSign },
+      {
+      id: "marketing",
+      title: "Marketing Leads",
+      value: "767",
+      icon: Megaphone,
+    },
   ];
 
   return (
@@ -233,6 +298,58 @@ export default function AdminReports() {
         ))}
       </div>
 
+       {/* MARKETING FILTERS */}
+      <div className="bg-white rounded-xl shadow p-6 mb-8">
+        <h2 className="text-lg font-semibold text-indigo-700 mb-4">
+          📢 Social Media & Marketing Intelligence
+        </h2>
+
+        <div className="flex gap-4 mb-4">
+          <select
+            className="border px-3 py-2 rounded"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            {["All", "Fundi", "Contractor", "Professional", "Customer", "Hardware"].map(
+              (r) => (
+                <option key={r}>{r}</option>
+              )
+            )}
+          </select>
+
+          <select
+            className="border px-3 py-2 rounded"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+          >
+            {["All", "Facebook", "Instagram", "Google", "LinkedIn", "WhatsApp", "TikTok", "Referral"].map(
+              (s) => (
+                <option key={s}>{s}</option>
+              )
+            )}
+          </select>
+
+          <button
+            onClick={() => exportCSV(filteredMarketing, "marketing_leads.csv")}
+            className="bg-indigo-600 text-white px-4 py-2 rounded"
+          >
+            Export Leads
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {filteredMarketing.map((m, i) => (
+            <div key={i} className="border rounded p-4">
+              <p className="font-bold text-indigo-700">
+                {m.role} • {m.source}
+              </p>
+              <p className="text-gray-600">Service: {m.service}</p>
+              <p className="text-xl font-bold mt-2">{m.count}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {modal && (
         <DetailModal
           title={DATASETS[modal].label}
@@ -266,6 +383,8 @@ export default function AdminReports() {
         </div>
       </div>
 
+
+
       {/* Audit Section */}
       <div className="bg-white rounded-xl shadow p-6 mt-8">
         <h2 className="text-lg font-semibold text-indigo-700 mb-4">
@@ -282,3 +401,13 @@ export default function AdminReports() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
