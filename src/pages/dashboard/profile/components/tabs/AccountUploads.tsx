@@ -4,6 +4,7 @@ import { FiDownload, FiEye, FiUpload, FiTrash2, FiCheck, FiX, FiRefreshCw, FiChe
 import { FileText, Image, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { getMockUploadsForUserType } from "@/pages/data/mockUploads";
+import { getAdminRole } from "@/config/adminRoles";
 
 const STORAGE_KEY = "uploads_demo";
 
@@ -73,6 +74,9 @@ interface AccountUploadsProps {
 
 const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
   if (!userData) return <div className="p-8">Loading...</div>;
+
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
 
   const [documents, setDocuments] = useState<Record<string, UploadedDocument>>({});
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
@@ -298,6 +302,13 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
         reviewedBy: "Admin",
       },
     }));
+    // Associate/Agent: set user to partially verified
+    if (adminRole === "ASSOCIATE" || adminRole === "AGENT") {
+      updateUserInLocalStorage(userData.id, {
+        status: "PARTIALLY_VERIFIED",
+      });
+      Object.assign(userData, { status: "PARTIALLY_VERIFIED" });
+    }
     toast.success("Document approved");
     closeActionModal();
   };
@@ -649,7 +660,7 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
               <StatusBadge status={overallStatus as DocumentStatus} />
 
               {/* Verify Button - Admin Only */}
-              {isAdmin && !userData?.adminApproved && (
+              {isAdmin && !userData?.adminApproved && adminRole !== "ASSOCIATE" && adminRole !== "AGENT" && (
                 <button
                   onClick={() => {
                     setIsVerifying(true);
@@ -756,6 +767,13 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
                               });
                               return updated;
                             });
+                            // Associate/Agent: set user to partially verified
+                            if (adminRole === "ASSOCIATE" || adminRole === "AGENT") {
+                              updateUserInLocalStorage(userData.id, {
+                                status: "PARTIALLY_VERIFIED",
+                              });
+                              Object.assign(userData, { status: "PARTIALLY_VERIFIED" });
+                            }
                             toast.success(`${pendingDocs.length} document(s) approved`);
                           } else {
                             toast.info("All documents are already approved");

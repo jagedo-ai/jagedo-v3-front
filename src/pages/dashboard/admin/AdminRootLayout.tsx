@@ -14,12 +14,15 @@ import useAxiosWithAuth from "@/utils/axiosInterceptor";
 import { getNotifications } from "@/api/notifications.api";
 import { NotificationsModal } from "@/components/NotificationsModal";
 import { toast } from "react-hot-toast";
+import { getAdminRole } from "@/config/adminRoles";
 
 export default function AdminRootLayout() {
   const navigate = useNavigate();
   const { user, logout } = useGlobalContext();
   const axiosInstance = useAxiosWithAuth(import.meta.env.VITE_SERVER_URL);
   
+  const adminRole = getAdminRole(user) || "SUPER_ADMIN";
+
   const [isSidebarExpanded, setSidebarExpanded] = useState(window.innerWidth > 1024);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notificationsModalOpen, setNotificationsModalOpen] = useState(false);
@@ -103,6 +106,7 @@ export default function AdminRootLayout() {
         <AdminSidebar
           expanded={isSidebarExpanded}
           setExpanded={setSidebarExpanded}
+          adminRole={adminRole}
         />
 
         <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarExpanded ? 'lg:ml-0' : 'lg:ml-0'}`}>

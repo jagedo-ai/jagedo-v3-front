@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 //@ts-nocheck
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
     ChevronFirst, Users, Briefcase, Home, ShoppingCart, LayoutDashboard,
     Package, Eye, Tag, Settings, MapPin, User, Hammer, Banknote, ChevronDown, ChartNoAxesCombined, FileText
 } from "lucide-react";
+import { rolePermissions } from "@/config/adminRoles";
 
 const SidebarContext = createContext();
 
@@ -39,11 +40,20 @@ const sidebarItems = [
     }
 ];
 
-export function AdminSidebar({ expanded, setExpanded }) {
+export function AdminSidebar({ expanded, setExpanded, adminRole = "SUPER_ADMIN" }) {
     const location = useLocation();
 
     const isActive = (href) => location.pathname === href;
     const isSubActive = (submenu) => submenu?.some(sub => location.pathname.startsWith(sub.href));
+
+    const allowedItems = rolePermissions[adminRole] || rolePermissions.SUPER_ADMIN;
+    const filteredSidebarItems = useMemo(() =>
+        sidebarItems.map(section => ({
+            ...section,
+            items: section.items.filter(item => allowedItems.includes(item.title)),
+        })).filter(section => section.items.length > 0),
+        [adminRole]
+    );
 
     useEffect(() => {
         const handleResize = () => {
@@ -78,7 +88,7 @@ export function AdminSidebar({ expanded, setExpanded }) {
 
                     <SidebarContext.Provider value={{ expanded, setExpanded }}>
                         <ul className="flex-1 px-3 overflow-y-auto overflow-x-hidden">
-                            {sidebarItems.map((section, sectionIndex) => (
+                            {filteredSidebarItems.map((section, sectionIndex) => (
                                 <div key={sectionIndex}>
                                     {expanded && <li className="px-3 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">{section.title}</li>}
                                     {!expanded && sectionIndex > 0 && <hr className="my-3" />}
@@ -94,7 +104,7 @@ export function AdminSidebar({ expanded, setExpanded }) {
                         <img src="https://ui-avatars.com/api/?background=c7d2fe&color=3730a3&bold=true" alt="User Avatar" className="w-10 h-10 rounded-md" />
                         <div className={`flex justify-between items-center overflow-hidden transition-all ${expanded ? "w-52 ml-3" : "w-0"}`}>
                             <div className="leading-4">
-                                <h4 className="font-semibold text-sm whitespace-nowrap">Admin User</h4>
+                                <h4 className="font-semibold text-sm whitespace-nowrap">{adminRole.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}</h4>
                                 <span className="text-xs text-gray-600">admin@jagedo.com</span>
                             </div>
                         </div>

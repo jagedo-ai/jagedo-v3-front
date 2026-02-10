@@ -1,5 +1,6 @@
 import React from 'react';
 import { User, Home, Upload, Briefcase, Package, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getAdminRole } from "@/config/adminRoles";
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
@@ -40,6 +41,9 @@ const productsItem = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, completionStatus = {} }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   // Determine which navigation items to show based on user type
   const getNavigationItems = () => {
     if (userType === 'CUSTOMER') {
@@ -53,7 +57,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, com
     return [...baseNavigationItems, experienceItem, uploadsItem, productsItem];
   };
 
-  const navigationItems = getNavigationItems();
+  const navigationItems = getNavigationItems().filter(item => {
+    if (adminRole === "AGENT" && item.id === "address") return false;
+    return true;
+  });
 
   const getUserTypeLabel = () => {
     switch (userType) {

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FiEdit, FiCheck, FiX, FiChevronDown } from "react-icons/fi";
 import { Star } from "lucide-react";
+import { getAdminRole } from "@/config/adminRoles";
 
 interface AccountInfoProps {
   userData: any;
@@ -65,6 +66,9 @@ const updateUserInLocalStorage = (
 };
 
 const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [askDeleteReason, setAskDeleteReason] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
@@ -604,6 +608,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                       </div>
                     </div>
 
+                    {adminRole !== "AGENT" && (
                     <div className="space-y-2">
                       <label className="block text-sm font-medium">Email</label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
@@ -658,6 +663,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                         )}
                       </div>
                     </div>
+                    )}
                   </div>
                 )}
 
@@ -778,6 +784,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                         )}
                       </div>
                     </div>
+                    {adminRole !== "AGENT" && (
                     <div className="space-y-2">
                       <label className="block text-sm font-medium">Email</label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
@@ -834,6 +841,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                         )}
                       </div>
                     </div>
+                    )}
                   </form>
                 )}
               </div>
