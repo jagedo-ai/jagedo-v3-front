@@ -121,6 +121,7 @@ const AccountUploads = () => {
       if (userId) {
         localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify(updated));
       }
+      window.dispatchEvent(new Event('localStorageUpdate'));
     };
 
 const handleSaveDocuments = () => {
@@ -134,7 +135,7 @@ const handleSaveDocuments = () => {
   );
 
   // 3️⃣ Tell sidebar to re-check status
-  window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new Event('localStorageUpdate'));
 
   toast.success("Uploads saved");
 };
@@ -157,9 +158,10 @@ const handleSaveDocuments = () => {
         { label: "Academics Certificate", key: "academicCertificate" },
         { label: "CV", key: "cv" },
         { label: "KRA PIN", key: "kraPIN" },
+        { label: "Practice License", key: "practiceLicense" },
       ],
       hardware: [
-        { label: "Business Registration", key: "businessRegistration" },
+        { label: "Certificate of Incorporation", key: "certificateOfIncorporation" },
         { label: "KRA PIN", key: "kraPIN" },
         { label: "Single Business Permit", key: "singleBusinessPermit" },
         { label: "Company Profile", key: "companyProfile" },
@@ -264,7 +266,11 @@ const handleSaveDocuments = () => {
 
     // Also save to the expected storage key for completion tracking
     if (userId) {
-      localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify(updated));
+      localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify({
+        ...updated,
+        ...categoryDocs
+      }));
+      window.dispatchEvent(new Event('localStorageUpdate'));
     }
   };
 
@@ -284,10 +290,12 @@ const handleSaveDocuments = () => {
 
     // Also save to the expected storage key for completion tracking
     if (userId) {
-      localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify(updated));
+      localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify({
+        ...documents,
+        ...updated
+      }));
+      window.dispatchEvent(new Event('localStorageUpdate'));
     }
-    
-    // ✅ DON'T trigger status update here - wait for Save button click
   };
 
   const handleSaveDocuments = () => {
@@ -305,7 +313,7 @@ const handleSaveDocuments = () => {
     }
 
     // Trigger completion status update
-    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('localStorageUpdate'));
 
     toast.success('Uploads saved successfully');
   };

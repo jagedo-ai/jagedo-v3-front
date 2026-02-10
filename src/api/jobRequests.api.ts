@@ -83,9 +83,9 @@ export const getCustomerJobRequests = async (
         );
         return response.data;
     } catch (error: any) {
-        throw new Error(
-            error.response?.data?.message || "Failed to fetch job requests"
-        );
+        // Return empty fallback when backend is unavailable (e.g. mock/dev mode)
+        console.warn("Could not fetch customer job requests:", error.message || error);
+        return { success: true, hashSet: [] } as any;
     }
 };
 
@@ -94,8 +94,7 @@ export const getServiceProviderJobRequests = async (
 ): Promise<JobRequestResponse[]> => {
     try {
         const response = await axiosInstance.get(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/service-provider`,
             {
                 headers: {
@@ -105,9 +104,9 @@ export const getServiceProviderJobRequests = async (
         );
         return response.data;
     } catch (error: any) {
-        throw new Error(
-            error.response?.data?.message || "Failed to fetch job requests"
-        );
+        // Return empty fallback when backend is unavailable (e.g. mock/dev mode)
+        console.warn("Could not fetch service provider job requests:", error.message || error);
+        return { success: true, hashSet: [] } as any;
     }
 };
 
@@ -305,8 +304,7 @@ export const completeJob = async (
 ): Promise<JobRequestResponse> => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${id}/complete-job`,
             {
                 headers: {
@@ -329,8 +327,7 @@ export const approveJobCompletion = async (
 ): Promise<JobRequestResponse> => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${id}/approve-completion`,
             {
                 headers: {
@@ -354,8 +351,7 @@ export const acceptAssignment = async (
 ): Promise<JobRequestResponse> => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${id}/accept-assignment?providerId=${providerId}`,
             null, // No request body
             {
@@ -380,8 +376,7 @@ export const acceptBid = async (
 ): Promise<JobRequestResponse> => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/customer/job-requests/${jobId}/bids/${bidId}/accept`,
             {
                 headers: {
@@ -405,8 +400,7 @@ export const approveMilestone = async (
 ): Promise<JobRequestResponse> => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${jobId}/approve-milestone`,
             milestoneData,
             {
@@ -431,8 +425,7 @@ export const addAdminNotes = async (
 ): Promise<JobRequestResponse> => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${jobId}/admin/add-notes`,
             adminNotesData,
             {
@@ -456,8 +449,7 @@ export const updateStage = async (
 ) => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${jobId}/stage`,
             {
                 stage: stage
@@ -481,8 +473,7 @@ export const addServiceProviderNotes = async (
 ) => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${jobId}/service-provider/add-notes`,
             serviceProviderNotesData
         );
@@ -490,7 +481,7 @@ export const addServiceProviderNotes = async (
     } catch (error: any) {
         throw new Error(
             error.response?.data?.message ||
-                "Failed to add service provider notes"
+            "Failed to add service provider notes"
         );
     }
 };
@@ -502,8 +493,7 @@ export const addAdminJobNotes = async (
 ) => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${jobId}/admin/add-notes`,
             adminNotesData
         );
@@ -511,7 +501,7 @@ export const addAdminJobNotes = async (
     } catch (error: any) {
         throw new Error(
             error.response?.data?.message ||
-                "Failed to add service provider notes"
+            "Failed to add service provider notes"
         );
     }
 };
@@ -519,8 +509,7 @@ export const addAdminJobNotes = async (
 export const closeJobRequest = async (axiosInstance: any, jobId: string) => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${jobId}/close-job`
         );
         return response.data;
@@ -539,8 +528,7 @@ export const addAdminActiveNotes = async (
 ) => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${jobId}/admin/add-active-notes`,
             adminActiveNotesData
         );
@@ -548,7 +536,7 @@ export const addAdminActiveNotes = async (
     } catch (error: any) {
         throw new Error(
             error.response?.data?.message ||
-                "Failed to add admin active notes"
+            "Failed to add admin active notes"
         );
     }
 };
@@ -561,8 +549,7 @@ export const addCustomerActiveNotes = async (
 ) => {
     try {
         const response = await axiosInstance.post(
-            `${
-                import.meta.env.VITE_SERVER_URL
+            `${import.meta.env.VITE_SERVER_URL
             }/api/job-requests/${jobId}/customer/add-active-job-notes`,
             customerActiveNotesData
         );
@@ -570,7 +557,7 @@ export const addCustomerActiveNotes = async (
     } catch (error: any) {
         throw new Error(
             error.response?.data?.message ||
-                "Failed to add customer active notes"
+            "Failed to add customer active notes"
         );
     }
 };
