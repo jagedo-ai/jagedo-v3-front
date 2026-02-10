@@ -218,8 +218,12 @@ export default function ProfessionalSignup() {
             firstName: profileData.firstName || "",
             lastName: profileData.lastName || "",
             organizationName: profileData.organizationName || "",
+            profession: formData.profession || "",
             profileCompleted: true,
-            status: "INCOMPLETE"
+            status: "INCOMPLETE",
+            userProfile: {
+                profession: formData.profession || "",
+            }
         };
 
         const existingUsers = JSON.parse(localStorage.getItem("mock_users_db") || "[]");

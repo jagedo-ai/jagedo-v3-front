@@ -42,29 +42,74 @@ const PROJECT_REQUIREMENTS = {
 
 
 const SPECIALIZATIONS_BY_CATEGORY: Record<string, string[]> = {
-    
-    
-   
- 
-    "Architect": [
-        "Residential",
-        "Commercial",
-        "Industrial",
-        "Urban",
+    "Project Manager": [
+        "Construction Project Management", "Infrastructure Projects", "Residential Development",
+        "Commercial Development", "Industrial Projects", "Government Projects",
+        "Real Estate Development", "Renovation & Remodeling", "Green Building Projects", "Multi-site Management",
     ],
-    
+    "Architect": [
+        "Residential Architecture", "Commercial Architecture", "Industrial Architecture",
+        "Landscape Architecture", "Interior Architecture", "Urban Planning",
+        "Sustainable Design", "Historic Preservation", "Healthcare Facilities", "Educational Facilities",
+    ],
+    "Water Engineer": [
+        "Water Supply Systems", "Wastewater Treatment", "Stormwater Management",
+        "Irrigation Engineering", "Hydraulic Structures", "Pipeline Engineering",
+        "Water Resources Management", "Flood Control", "Desalination Systems", "Environmental Water Solutions",
+    ],
+    "Roads Engineer": [
+        "Highway Design", "Urban Road Design", "Pavement Engineering", "Traffic Engineering",
+        "Bridge Engineering", "Road Rehabilitation", "Drainage Design",
+        "Survey & Mapping", "Construction Supervision", "Road Safety Engineering",
+    ],
+    "Structural Engineer": [
+        "Building Structures", "Bridge Structures", "Industrial Structures", "Concrete Structures",
+        "Steel Structures", "Foundation Engineering", "Seismic Design",
+        "Structural Assessment", "Retrofit & Rehabilitation", "Temporary Structures",
+    ],
+    "Mechanical Engineer": [
+        "HVAC Systems", "Plumbing Systems", "Fire Protection Systems", "Elevator & Escalator Systems",
+        "Industrial Machinery", "Energy Systems", "Building Automation",
+        "Refrigeration Systems", "Ventilation Design", "Mechanical Maintenance",
+    ],
+    "Electrical Engineer": [
+        "Power Distribution", "Lighting Design", "Building Electrical Systems", "Industrial Electrical",
+        "Renewable Energy Systems", "Control Systems", "Telecommunications",
+        "Security Systems", "Fire Alarm Systems", "Energy Management",
+    ],
+    "Surveyor": [
+        "Land Surveying", "Topographic Surveys", "Construction Surveying", "Cadastral Surveys",
+        "Engineering Surveys", "GPS & GIS Mapping", "Hydrographic Surveys",
+        "Quantity Surveying", "Boundary Surveys", "As-built Surveys",
+    ],
+    "Quantity Surveyor": [
+        "Cost Estimation", "Bill of Quantities", "Contract Administration", "Value Engineering",
+        "Project Cost Control", "Procurement Management", "Final Account Settlement",
+        "Risk Assessment", "Feasibility Studies", "Life Cycle Costing",
+    ],
+    "Construction Manager": ["Site Management", "Project Coordination", "Resource Planning", "Quality Control"],
+    "Environment Officer": ["Environmental Impact", "Compliance", "Waste Management", "Sustainability"],
+    "Geotechnical Engineer": ["Soil Investigation", "Foundation Design", "Slope Stability", "Ground Improvement"],
+    "Geologist": ["Site Investigation", "Rock Mechanics", "Hydrogeology", "Mineral Exploration"],
+    "Hydrologist": ["Water Resources", "Flood Analysis", "Watershed Management", "Groundwater Studies"],
+    "Interior Designer": ["Residential Interiors", "Commercial Interiors", "Hospitality Design", "Office Design"],
+    "Land Surveyor": ["Cadastral Surveys", "Topographic Surveys", "Boundary Surveys", "GPS Mapping"],
+    "Landscape Architect": ["Landscape Design", "Urban Landscaping", "Park Design", "Environmental Restoration"],
+    "Safety Officer": ["Construction Safety", "Risk Assessment", "Safety Audits", "Emergency Planning"],
+    "Topo Surveyor": ["Topographic Mapping", "Digital Terrain Models", "GIS Surveys", "Contour Mapping"],
 };
 
 const ProffExperience = () => {
     const axiosInstance = useAxiosWithAuth(import.meta.env.VITE_SERVER_URL);
-    const { logout, user: contextUser } = useGlobalContext();
+    const { logout, user: contextUser, setUser } = useGlobalContext();
     const user = contextUser || (localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user") || "{}") : null);
-    const [specialization, setSpecialization] = useState("Architect");
+    // Read profession from user data (set during signup)
+    const userProfession = user?.userProfile?.profession || user?.profession || "";
+    const [specialization, setSpecialization] = useState(userProfession || "");
     // Prefilled fields
-    const [category, setCategory] = useState("Architect");
-    // const [specialization, setSpecialization] = useState("Structural Engineer");
-    const [level, setLevel] = useState("Professional");
-    const [experience, setExperience] = useState("10+ years");
+    const [category, setCategory] = useState(userProfession || "");
+    const [level, setLevel] = useState("");
+    const [experience, setExperience] = useState("");
     const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
 
     const [submitted, setSubmitted] = useState(false);
@@ -87,9 +132,10 @@ const ProffExperience = () => {
             const saved = localStorage.getItem(storageKey);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                setCategory(parsed.category || "Architect");
-                setSpecialization(parsed.specialization || "Architect");
-                setLevel(parsed.level || "Professional");
+                const profFallback = user?.userProfile?.profession || user?.profession || "";
+                setCategory(parsed.category || profFallback);
+                setSpecialization(parsed.specialization || "");
+                setLevel(parsed.level || "");
                 setExperience(parsed.experience || "");
                 if (parsed.attachments && parsed.attachments.length > 0) {
                     setAttachments(parsed.attachments);
@@ -246,6 +292,24 @@ const ProffExperience = () => {
             };
 
             localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+
+            // Update user context so sidebar status recalculates
+            setUser((prev: any) => ({
+                ...prev,
+                userProfile: {
+                    ...prev?.userProfile,
+                    profession: category,
+                    specialization,
+                    professionalLevel: level,
+                    yearsOfExperience: experience,
+                    professionalProjects: attachments.slice(0, rowsToShow).filter(a => a.projectName.trim() && a.files.length > 0).map(a => ({
+                        projectName: a.projectName,
+                        fileUrl: typeof a.files[0] === 'string' ? a.files[0] : a.files[0]?.name || '',
+                    })),
+                },
+            }));
+
+            window.dispatchEvent(new Event("storage"));
 
             toast.success('Experience saved successfully!');
             setSubmitted(true);

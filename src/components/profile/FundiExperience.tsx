@@ -30,6 +30,35 @@ const loadFromStorage = (userId: string | number | undefined) => {
   }
 };
 
+// Mapping from signup slugs to display names
+const SKILL_SLUG_TO_DISPLAY: Record<string, string> = {
+  "carpenter": "Carpenter",
+  "electrician": "Electrician",
+  "fitter": "Fitter",
+  "foreman": "Foreman",
+  "glass-aluminium-fitter": "Glass/Aluminium Fitter",
+  "interior-skimmer": "Interior Skimmer",
+  "mason": "Mason",
+  "painter": "Painter",
+  "plumber": "Plumber",
+  "roofer": "Roofer",
+  "steel-fixer": "Steel Fixer",
+  "tile-fixer": "Tile Fixer",
+  "welder": "Welder",
+};
+
+// Resolve a skill slug or display name to a friendly display name
+const resolveSkillName = (raw: string): string => {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (SKILL_SLUG_TO_DISPLAY[trimmed]) return SKILL_SLUG_TO_DISPLAY[trimmed];
+  // Already a display name or unknown — title-case as fallback
+  if (trimmed.includes("-")) {
+    return trimmed.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  }
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+};
+
 
 const requiredProjectsByGrade: { [key: string]: number } = {
   "G1: Master Fundi": 3,
@@ -82,7 +111,7 @@ const FundiExperience = () => {
       setGrade(saved.grade ?? "");
       setExperience(saved.experience ?? "");
       setSpecialization(saved.specialization ?? "");
-      setSkill(saved.skill ?? user?.userProfile?.skill ?? user?.skills ?? "");
+      setSkill(resolveSkillName(saved.skill ?? user?.userProfile?.skill ?? user?.skills ?? ""));
       setAttachments(saved.attachments ?? [...emptyAttachments]);
     } else {
       // Fallback to user object data if no localStorage data
@@ -92,7 +121,7 @@ const FundiExperience = () => {
         setExperience(userProfile.experience ?? "");
         setSpecialization(userProfile.specialization ?? "");
       }
-      setSkill(user?.userProfile?.skill ?? user?.skills ?? "");
+      setSkill(resolveSkillName(user?.userProfile?.skill ?? user?.skills ?? ""));
       setAttachments([...emptyAttachments]);
     }
 
@@ -152,24 +181,24 @@ const FundiExperience = () => {
       return toast.error(`Please add ${required} complete project(s).`);
     }
 
-   saveToStorage({ grade, experience, specialization, skill, attachments }, userId);
+    saveToStorage({ grade, experience, specialization, skill, attachments }, userId);
 
-setUser((prev: any) => ({
-  ...prev,
-  userProfile: {
-    ...prev.userProfile,
-    grade,
-    experience,
-    specialization,
-    skill,
-    previousJobPhotoUrls: attachments.flatMap(a => a.files),
-  },
-}));
+    setUser((prev: any) => ({
+      ...prev,
+      userProfile: {
+        ...prev.userProfile,
+        grade,
+        experience,
+        specialization,
+        skill,
+        previousJobPhotoUrls: attachments.flatMap(a => a.files),
+      },
+    }));
 
-window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("storage"));
 
-toast.success("Experience saved!");
-setIsSubmitting(false);
+    toast.success("Experience saved!");
+    setIsSubmitting(false);
 
   };
 
@@ -182,12 +211,12 @@ setIsSubmitting(false);
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <h1 className="text-4xl font-bold mb-8">Fundi Experience</h1>
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm">
-  <p className="font-semibold mb-1">Next Steps</p>
-  <ul className="list-disc pl-5 space-y-1">
-    <li>You will attend a <strong>15-minute interview</strong> after submission.</li>
-    <li>Verification typically takes between <strong>7 to 14 days</strong> based on your work review.</li>
-  </ul>
-</div>
+          <p className="font-semibold mb-1">Next Steps</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>You will attend a <strong>15-minute interview</strong> after submission.</li>
+            <li>Verification typically takes between <strong>7 to 14 days</strong> based on your work review.</li>
+          </ul>
+        </div>
 
 
         <form className="space-y-4" onSubmit={handleSubmit}>

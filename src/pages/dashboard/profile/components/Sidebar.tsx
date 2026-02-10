@@ -168,11 +168,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, com
                   </span>
 
              {!isOptional && (
-  // For experience and uploads, show text instead of icons
+  // For experience and uploads: tick when complete, "Incomplete" text when not
   (item.id === 'experience' || item.id === 'account-uploads') ? (
-    <span className={`ml-auto font-semibold ${isComplete ? 'text-green-600' : 'text-red-600'}`}>
-      {isComplete ? 'Complete' : 'Incomplete'}
-    </span>
+    isComplete ? (
+      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+    ) : (
+      <span className="ml-auto text-xs font-semibold px-2 py-1 rounded-full text-red-700 bg-red-100">
+        Incomplete
+      </span>
+    )
   ) : (
     // For all other items, keep the original icons
     isComplete ? (
