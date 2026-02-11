@@ -116,8 +116,8 @@ export const useProfileCompletion = (userData: any, userType: string) => {
         customer: ['businessPermit', 'certificateOfIncorporation', 'kraPIN'],
         fundi: ['idFront', 'idBack', 'certificate', 'kraPIN'],
         professional: ['idFront', 'idBack', 'academicCertificate', 'cv', 'kraPIN', 'practiceLicense'],
-        contractor: ['businessRegistration', 'businessPermit', 'kraPIN', 'companyProfile'],
-        hardware: ['certificateOfIncorporation', 'kraPIN', 'singleBusinessPermit', 'companyProfile'],
+        contractor: ['certificateOfIncorporation', 'businessPermit', 'kraPIN', 'companyProfile'],
+        hardware: ['certificateOfIncorporation', 'businessPermit', 'kraPIN', 'companyProfile'],
       };
 
       return docMap[userTypeLower] || [];

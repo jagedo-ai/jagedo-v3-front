@@ -41,6 +41,43 @@ const PROJECT_REQUIREMENTS = {
 };
 
 
+// Mapping from signup slugs to display names for professional categories
+const PROFESSION_SLUG_TO_DISPLAY: Record<string, string> = {
+    "project-manager": "Project Manager",
+    "architect": "Architect",
+    "water-engineer": "Water Engineer",
+    "roads-engineer": "Roads Engineer",
+    "structural-engineer": "Structural Engineer",
+    "mechanical-engineer": "Mechanical Engineer",
+    "electrical-engineer": "Electrical Engineer",
+    "surveyor": "Surveyor",
+    "quantity-surveyor": "Quantity Surveyor",
+    "construction-manager": "Construction Manager",
+    "environment-officer": "Environment Officer",
+    "geotechnical-engineer": "Geotechnical Engineer",
+    "geologist": "Geologist",
+    "hydrologist": "Hydrologist",
+    "interior-designer": "Interior Designer",
+    "land-surveyor": "Land Surveyor",
+    "landscape-architect": "Landscape Architect",
+    "safety-officer": "Safety Officer",
+    "topo-surveyor": "Topo Surveyor",
+};
+
+const resolveProfession = (raw: string): string => {
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+    // Check if it's already a known display name (key in SPECIALIZATIONS_BY_CATEGORY)
+    if (SPECIALIZATIONS_BY_CATEGORY[trimmed]) return trimmed;
+    // Try slug mapping
+    if (PROFESSION_SLUG_TO_DISPLAY[trimmed]) return PROFESSION_SLUG_TO_DISPLAY[trimmed];
+    // Fallback: title-case the slug
+    if (trimmed.includes("-")) {
+        return trimmed.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    }
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+};
+
 const SPECIALIZATIONS_BY_CATEGORY: Record<string, string[]> = {
     "Project Manager": [
         "Construction Project Management", "Infrastructure Projects", "Residential Development",
@@ -104,8 +141,9 @@ const ProffExperience = () => {
     const { logout, user: contextUser, setUser } = useGlobalContext();
     const user = contextUser || (localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user") || "{}") : null);
     // Read profession from user data (set during signup)
-    const userProfession = user?.userProfile?.profession || user?.profession || "";
-    const [specialization, setSpecialization] = useState(userProfession || "");
+    const userProfessionRaw = user?.userProfile?.profession || user?.profession || "";
+    const userProfession = resolveProfession(userProfessionRaw);
+    const [specialization, setSpecialization] = useState("");
     // Prefilled fields
     const [category, setCategory] = useState(userProfession || "");
     const [level, setLevel] = useState("");
@@ -132,8 +170,8 @@ const ProffExperience = () => {
             const saved = localStorage.getItem(storageKey);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                const profFallback = user?.userProfile?.profession || user?.profession || "";
-                setCategory(parsed.category || profFallback);
+                const profFallback = resolveProfession(user?.userProfile?.profession || user?.profession || "");
+                setCategory(resolveProfession(parsed.category) || profFallback);
                 setSpecialization(parsed.specialization || "");
                 setLevel(parsed.level || "");
                 setExperience(parsed.experience || "");
@@ -347,6 +385,7 @@ const ProffExperience = () => {
                                                 disabled={isReadOnly}
                                                 className={inputStyles}
                                             >
+                                                <option value="">Select specialization</option>
                                                 {SPECIALIZATIONS_BY_CATEGORY[category]?.map(spec => (
                                                     <option key={spec} value={spec}>
                                                         {spec}
