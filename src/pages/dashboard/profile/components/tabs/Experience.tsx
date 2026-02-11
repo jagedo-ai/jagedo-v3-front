@@ -11,9 +11,10 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/outline";
 import { UploadCloud, FileText, CheckCircle } from "lucide-react";
-import { FiCheck } from "react-icons/fi";
+import { FiCheck, FiX } from "react-icons/fi";
 import { SquarePen } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { getAdminRole } from "@/config/adminRoles";
 
 
  // Specialization options by user type
@@ -388,7 +389,9 @@ const updateUserInLocalStorage = (
 };
 
 const Experience = ({ userData }) => {
-  
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   console.log("User Data: ", userData);
   // const axiosInstance = useAxiosWithAuth(import.meta.env.VITE_SERVER_URL)
   const [isEditingFields, setIsEditingFields] = useState(false);
@@ -404,17 +407,13 @@ const Experience = ({ userData }) => {
   const status = userData?.status;
 
   // Statuses that should prefill/show existing data
-  const PREFILL_STATUSES = ["COMPLETED", "VERIFIED", "PENDING", "RETURNED"];
+  const PREFILL_STATUSES = ["COMPLETED", "VERIFIED", "PENDING", "RETURNED", "INCOMPLETE"];
 
   // Initialize attachments based on user type
   const getInitialAttachments = () => {
-    // For SIGNED_UP or INCOMPLETE, return empty attachments
-    if (!PREFILL_STATUSES.includes(status)) {
-      return [];
-    }
-
     let projectData = [];
 
+    // Always try to load existing project data from userProfile
     switch (userType) {
       case "FUNDI":
         projectData = userData?.userProfile?.previousJobPhotoUrls || [];
@@ -432,20 +431,22 @@ const Experience = ({ userData }) => {
         projectData = userData?.userProfile?.previousJobPhotoUrls || [];
     }
 
-    if (!projectData || projectData.length === 0) {
-      return [];
+    // If there's saved project data, always load it (regardless of status)
+    if (projectData && projectData.length > 0) {
+      return projectData.map((project, index) => ({
+        id: index + 1,
+        projectName: project.projectName || `${userType} Project ${index + 1}`,
+        files: [
+          {
+            name: `${project.projectName || `${userType} Project ${index + 1}`}.jpg`,
+            url: project.fileUrl || project?.projectFile,
+          },
+        ],
+      }));
     }
 
-    return projectData.map((project, index) => ({
-      id: index + 1,
-      projectName: project.projectName || `${userType} Project ${index + 1}`,
-      files: [
-        {
-          name: `${project.projectName || `${userType} Project ${index + 1}`}.jpg`,
-          url: project.fileUrl || project?.projectFile,
-        },
-      ],
-    }));
+    // No saved projects - return empty array
+    return [];
   };
 
   const profileUploaded = (userData) => {
@@ -508,6 +509,14 @@ const CATEGORY_OPTIONS = [
     [key: string]: boolean;
   }>({});
   const [newProjects, setNewProjects] = useState<{ [key: string]: any }>({});
+
+  // Re-sync attachments when userData changes (e.g., after adding a project)
+  useEffect(() => {
+    const loadedAttachments = getInitialAttachments();
+    if (loadedAttachments.length > 0) {
+      setAttachments(loadedAttachments);
+    }
+  }, [userData?.userProfile]);
 // Initialize categories from userData or defaults
 const getInitialCategories = (): ContractorCategory[] => {
   if (userData?.userProfile?.contractorCategories && Array.isArray(userData.userProfile.contractorCategories)) {
@@ -640,6 +649,9 @@ const removeCategory = (index: number) => {
 
  
   // Dynamic field configurations based on user type
+  // Use editingFields when in edit mode so dependent dropdowns update correctly
+  const activeInfo = isEditingFields ? { ...info, ...editingFields } : info;
+
   const getFieldsConfig = () => {
     switch (userType) {
       case "FUNDI":
@@ -661,7 +673,7 @@ const removeCategory = (index: number) => {
           {
             name: "specialization",
             label: "Specialization",
-            options: FUNDI_SPECIALIZATIONS[info.skill as keyof typeof FUNDI_SPECIALIZATIONS] || [
+            options: FUNDI_SPECIALIZATIONS[activeInfo.skill as keyof typeof FUNDI_SPECIALIZATIONS] || [
               "Block Work & Brick Laying",
               "Plastering & Rendering",
               "Stone Masonry",
@@ -707,7 +719,7 @@ const removeCategory = (index: number) => {
           {
             name: "specialization",
             label: "Specialization",
-            options: PROFESSIONAL_SPECIALIZATIONS[info.profession as keyof typeof PROFESSIONAL_SPECIALIZATIONS] || [
+            options: PROFESSIONAL_SPECIALIZATIONS[activeInfo.profession as keyof typeof PROFESSIONAL_SPECIALIZATIONS] || [
               "Residential Architecture",
               "Commercial Architecture",
               "Industrial Architecture",
@@ -745,8 +757,8 @@ const removeCategory = (index: number) => {
           {
             name: "specialization",
             label: "Specialization",
-            options: CONTRACTOR_SPECIALIZATIONS[info.category as keyof typeof CONTRACTOR_SPECIALIZATIONS] || 
-              CONTRACTOR_SPECIALIZATIONS[info.contractorType as keyof typeof CONTRACTOR_SPECIALIZATIONS] || [
+            options: CONTRACTOR_SPECIALIZATIONS[activeInfo.category as keyof typeof CONTRACTOR_SPECIALIZATIONS] ||
+              CONTRACTOR_SPECIALIZATIONS[activeInfo.contractorType as keyof typeof CONTRACTOR_SPECIALIZATIONS] || [
               "Residential Construction",
               "Commercial Construction",
               "Industrial Construction",
@@ -1270,8 +1282,10 @@ const removeCategory = (index: number) => {
 
   // Load initial values from localStorage and userData
   useEffect(() => {
-    // Check localStorage for verification message
-    const stored = localStorage.getItem("showVerificationMessage");
+    const userId = userData?.id;
+    // Check localStorage for verification message (user-specific)
+    const storageKey = userId ? `showVerificationMessage_${userId}` : "showVerificationMessage";
+    const stored = localStorage.getItem(storageKey);
     if (stored === "true") {
       setShowVerificationMessage(true);
     }
@@ -1305,14 +1319,18 @@ const removeCategory = (index: number) => {
     }
     updateUserInLocalStorage(userId, { adminApproved: true, approved: true });
     Object.assign(userData, { adminApproved: true, approved: true });
-    localStorage.setItem("showVerificationMessage", "true");
+    // Use user-specific storage key
+    const storageKey = `showVerificationMessage_${userId}`;
+    localStorage.setItem(storageKey, "true");
     setShowVerificationMessage(true);
     setIsVerifying(false);
   };
 
   // When close is clicked
   const handleClose = () => {
-    localStorage.removeItem("showVerificationMessage");
+    const userId = userData?.id;
+    const storageKey = userId ? `showVerificationMessage_${userId}` : "showVerificationMessage";
+    localStorage.removeItem(storageKey);
     setShowVerificationMessage(false);
   };
 
@@ -1408,10 +1426,32 @@ const removeCategory = (index: number) => {
             </h1>
             <div className="flex items-center gap-3">
               {userData?.userProfile?.experienceApproved ? (
-                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                  <FiCheck className="w-4 h-4" />
-                  Experience Approved
-                </span>
+                <>
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                    <FiCheck className="w-4 h-4" />
+                    Experience Approved
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const profile = userData?.userProfile || {};
+                      const updatedProfile = {
+                        ...profile,
+                        experienceApproved: false,
+                        experienceApprovedAt: null,
+                        experienceDisapprovedAt: new Date().toISOString(),
+                      };
+                      userData.userProfile = updatedProfile;
+                      updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
+                      toast.success("Experience has been disapproved.");
+                      window.dispatchEvent(new Event('storage'));
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
+                  >
+                    <FiX className="w-4 h-4" />
+                    Disapprove
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
@@ -1424,7 +1464,13 @@ const removeCategory = (index: number) => {
                     };
                     userData.userProfile = updatedProfile;
                     updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
+                    // Associate/Agent: set user to partially verified
+                    if (adminRole === "ASSOCIATE" || adminRole === "AGENT") {
+                      updateUserInLocalStorage(userData.id, { status: "PARTIALLY_VERIFIED" });
+                      Object.assign(userData, { status: "PARTIALLY_VERIFIED" });
+                    }
                     toast.success("Experience section has been approved!");
+                    window.dispatchEvent(new Event('storage'));
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
                 >
@@ -1436,96 +1482,68 @@ const removeCategory = (index: number) => {
           </div>
 
           <form onSubmit={handleEvaluationSubmit} className="space-y-8">
-            {/* Skills Section - Card Based Design */}
+            {/* Skills Section - 4-Column Grid Layout */}
             <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">
-                {userData?.userType} Information
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-800">
+                  {userData?.userType} Information
+                </h2>
+                {!isEditingFields && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingFields({ ...info });
+                      setIsEditingFields(true);
+                    }}
+                    className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition text-sm font-medium"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                    Edit
+                  </button>
+                )}
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {fields.map((field, index) => {
                   // Skip contractor experience table - handled in Work Categories section
                   if (userType.toLowerCase() === "contractor" && field.name === "experience") {
                     return null;
                   }
 
-                  const isGradeField = field.name === "grade" || field.name === "professionalLevel";
                   const fieldValue = typeof info[field.name] === "string" ? info[field.name] : "";
 
                   return (
-                    <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <label className="text-sm font-medium text-gray-600">
-                          {field.label}
-                        </label>
-                        {!isEditingFields && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingFields({ ...info });
-                              setIsEditingFields(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 transition"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-
-                      {isGradeField || field.name === "experience" || field.name === "yearsOfExperience" ? (
-                        // Experience field with dropdown
-                        isEditingFields ? (
-                          <select
-                            value={editingFields[field.name] ?? fieldValue ?? ""}
-                            onChange={(e) => {
-                              setEditingFields((prev) => ({
-                                ...prev,
-                                [field.name]: e.target.value,
-                              }));
-                            }}
-                            className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="" disabled>
-                              Select {field.label.toLowerCase()}
+                    <div key={index}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {field.label}
+                      </label>
+                      {isEditingFields ? (
+                        <select
+                          value={editingFields[field.name] ?? fieldValue ?? ""}
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+                            setEditingFields((prev) => {
+                              const updated = { ...prev, [field.name]: newValue };
+                              // Reset specialization when parent field changes
+                              if (field.name === "skill" || field.name === "profession" || field.name === "category") {
+                                updated.specialization = "";
+                              }
+                              return updated;
+                            });
+                          }}
+                          className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        >
+                          <option value="">Select {field.label.toLowerCase()}</option>
+                          {field.options.map((opt, i) => (
+                            <option key={i} value={opt}>
+                              {opt}
                             </option>
-                            {field.options.map((opt, i) => (
-                              <option key={i} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <p className="text-gray-900 font-medium">
-                            {fieldValue || "Not Provided"}
-                          </p>
-                        )
+                          ))}
+                        </select>
                       ) : (
-                        // Skill/Specialization fields
-                        isEditingFields ? (
-                          <select
-                            value={editingFields[field.name] ?? fieldValue ?? ""}
-                            onChange={(e) => {
-                              setEditingFields((prev) => ({
-                                ...prev,
-                                [field.name]: e.target.value,
-                              }));
-                            }}
-                            className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="" disabled>
-                              Select {field.label.toLowerCase()}
-                            </option>
-                            {field.options.map((opt, i) => (
-                              <option key={i} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <p className="text-gray-900 font-medium">
-                            {fieldValue || "Not Provided"}
-                          </p>
-                        )
+                        <div className="w-full p-3 bg-gray-100 rounded-lg text-sm text-gray-900">
+                          {fieldValue || "Not Provided"}
+                        </div>
                       )}
                     </div>
                   );
@@ -1533,10 +1551,10 @@ const removeCategory = (index: number) => {
               </div>
 
               {isEditingFields && (
-                <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3">
+                <div className="mt-6 flex justify-end gap-3">
                   <button
                     type="button"
-                    className="w-full sm:w-auto px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium disabled:opacity-50"
+                    className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium disabled:opacity-50"
                     onClick={() => setIsEditingFields(false)}
                     disabled={isSavingInfo}
                   >
@@ -1544,13 +1562,13 @@ const removeCategory = (index: number) => {
                   </button>
                   <button
                     type="button"
-                    className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => {
                       handleEditSkill(editingFields);
                     }}
                     disabled={isSavingInfo}
                   >
-                    {isSavingInfo ? "Saving..." : "Save Changes"}
+                    {isSavingInfo ? "Saving..." : "Save"}
                   </button>
                 </div>
               )}
@@ -1748,7 +1766,8 @@ const removeCategory = (index: number) => {
               </div>
             )}
 
-            {/* {userType} Project Attachments */}
+            {/* {userType} Project Attachments - Hidden for PROFESSIONAL and FUNDI users in admin register */}
+            {userType !== "PROFESSIONAL" && userType !== "FUNDI" && (
             <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
@@ -1877,7 +1896,7 @@ const removeCategory = (index: number) => {
                 </table>
               </div>
 
-              {/* Add New Projects Section */}
+              {/* Add New Projects Section - for non-professional, non-fundi users */}
               {missingProjectCount > 0 && (
                 <div className="border-t border-gray-200 bg-blue-50">
                   <div className="px-6 py-4">
@@ -2021,6 +2040,488 @@ const removeCategory = (index: number) => {
                 </div>
               )}
             </div>
+            )}
+
+            {/* Display Existing Projects for FUNDI users */}
+            {userType === "FUNDI" && attachments.length > 0 && (
+              <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Fundi Projects
+                    </h3>
+                    <span className="text-sm text-gray-600">
+                      {attachments.length} of {requiredProjectCount} required projects
+                    </span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-gray-700">
+                    <thead className="bg-gray-50 text-left">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold">No.</th>
+                        <th className="px-6 py-4 font-semibold">Project Name</th>
+                        <th className="px-6 py-4 font-semibold">Uploaded Files</th>
+                        <th className="px-6 py-4 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {attachments.map((row, index) => (
+                        <tr key={row.id} className="hover:bg-gray-50 transition">
+                          <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+                          <td className="px-6 py-4 font-medium">
+                            {row.projectName || `Fundi Project ${index + 1}`}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-2">
+                              {row.files.length > 0 ? (
+                                row.files.map((file, fileIndex) => {
+                                  const isRemoving = fileActionLoading[`remove-${index}-${fileIndex}`];
+                                  return (
+                                    <div
+                                      key={fileIndex}
+                                      className="flex items-center justify-between bg-gray-100 p-2 rounded-md shadow-sm"
+                                    >
+                                      <span className="truncate text-sm">{file.name}</span>
+                                      <div className="flex space-x-2 items-center">
+                                        <a
+                                          href={file.url}
+                                          download={file.name}
+                                          className="text-blue-600 hover:text-blue-800"
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <ArrowDownTrayIcon className="h-5 w-5" />
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveFile(index, fileIndex)}
+                                          className="text-red-500 hover:text-red-700 disabled:opacity-50"
+                                          disabled={isRemoving}
+                                        >
+                                          {isRemoving ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                                          ) : (
+                                            <XMarkIcon className="h-5 w-5" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-gray-400 text-sm">No files uploaded</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="file"
+                              multiple
+                              onChange={(e) => handleFileUpload(e, index)}
+                              className="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-3
+                                file:rounded-md file:border-0
+                                file:bg-blue-600 file:text-white
+                                hover:file:bg-blue-700
+                                cursor-pointer disabled:opacity-50"
+                              disabled={fileActionLoading[`add-${index}`]}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Add Missing Projects Section - for FUNDI users */}
+            {userType === "FUNDI" && missingProjectCount > 0 && (
+            <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                <div className="border-t border-gray-200 bg-blue-50">
+                  <div className="px-6 py-4">
+                    <h4 className="text-md font-semibold text-blue-900 mb-4">
+                      Add Missing Projects ({missingProjectCount} remaining)
+                    </h4>
+                    <p className="text-sm text-blue-700 mb-4">
+                      Add projects on behalf of the user to complete their
+                      experience profile:
+                    </p>
+
+                    {Array.from(
+                      { length: Math.min(missingProjectCount, 3) },
+                      (_, index) => {
+                        const projectId = `new_${index}`;
+                        const project = newProjects[projectId] || {
+                          name: "",
+                          files: [],
+                        };
+                        const isLoading = uploadingProjects[projectId];
+
+                        return (
+                          <div
+                            key={projectId}
+                            className="mb-6 p-4 bg-white rounded-lg border border-blue-200"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Project Name
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Enter project name"
+                                  value={project.name}
+                                  onChange={(e) =>
+                                    setNewProjects((prev) => ({
+                                      ...prev,
+                                      [projectId]: {
+                                        ...project,
+                                        name: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Project Files
+                                </label>
+                                <div className="space-y-2">
+                                  {project.files.map(
+                                    (file: File, fileIndex: number) => (
+                                      <div
+                                        key={fileIndex}
+                                        className="flex items-center justify-between bg-gray-100 p-2 rounded-md"
+                                      >
+                                        <span className="text-sm text-gray-700 truncate">
+                                          {file.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updatedFiles = [
+                                              ...project.files,
+                                            ];
+                                            updatedFiles.splice(fileIndex, 1);
+                                            setNewProjects((prev) => ({
+                                              ...prev,
+                                              [projectId]: {
+                                                ...project,
+                                                files: updatedFiles,
+                                              },
+                                            }));
+                                          }}
+                                          className="text-red-500 hover:text-red-700"
+                                        >
+                                          <XMarkIcon className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <input
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => {
+                                      const files = Array.from(
+                                        e.target.files || [],
+                                      );
+                                      setNewProjects((prev) => ({
+                                        ...prev,
+                                        [projectId]: {
+                                          ...project,
+                                          files: [...project.files, ...files],
+                                        },
+                                      }));
+                                    }}
+                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 flex justify-end">
+                              {isLoading ? (
+                                <div className="flex items-center gap-2 text-blue-600">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                  <span className="text-sm">
+                                    Adding project...
+                                  </span>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleAddNewProject(
+                                      projectId,
+                                      project.name,
+                                      project.files,
+                                    )
+                                  }
+                                  disabled={
+                                    !project.name.trim() ||
+                                    project.files.length === 0 ||
+                                    isLoading
+                                  }
+                                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <PlusIcon className="w-4 h-4" />
+                                  <span className="text-sm font-medium">
+                                    Add Project
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+                </div>
+            </div>
+            )}
+
+            {/* Display Existing Projects for PROFESSIONAL users */}
+            {userType === "PROFESSIONAL" && attachments.length > 0 && (
+              <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Professional Projects
+                    </h3>
+                    <span className="text-sm text-gray-600">
+                      {attachments.length} of {requiredProjectCount} required projects
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-gray-700">
+                    <thead className="bg-gray-50 text-left">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold">No.</th>
+                        <th className="px-6 py-4 font-semibold">Project Name</th>
+                        <th className="px-6 py-4 font-semibold">Uploaded Files</th>
+                        <th className="px-6 py-4 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {attachments.map((row, index) => (
+                        <tr key={row.id} className="hover:bg-gray-50 transition">
+                          <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+                          <td className="px-6 py-4 font-medium">
+                            {row.projectName || `Professional Project ${index + 1}`}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-2">
+                              {row.files.length > 0 ? (
+                                row.files.map((file, fileIndex) => {
+                                  const isRemoving = fileActionLoading[`remove-${index}-${fileIndex}`];
+                                  return (
+                                    <div
+                                      key={fileIndex}
+                                      className="flex items-center justify-between bg-gray-100 p-2 rounded-md shadow-sm"
+                                    >
+                                      <span className="truncate text-sm">{file.name}</span>
+                                      <div className="flex space-x-2 items-center">
+                                        <a
+                                          href={file.url}
+                                          download={file.name}
+                                          className="text-blue-600 hover:text-blue-800"
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <ArrowDownTrayIcon className="h-5 w-5" />
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveFile(index, fileIndex)}
+                                          className="text-red-500 hover:text-red-700 disabled:opacity-50"
+                                          disabled={isRemoving}
+                                        >
+                                          {isRemoving ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                                          ) : (
+                                            <XMarkIcon className="h-5 w-5" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-gray-400 text-sm">No files uploaded</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="file"
+                              multiple
+                              onChange={(e) => handleFileUpload(e, index)}
+                              className="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-3
+                                file:rounded-md file:border-0
+                                file:bg-blue-600 file:text-white
+                                hover:file:bg-blue-700
+                                cursor-pointer disabled:opacity-50"
+                              disabled={fileActionLoading[`add-${index}`]}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Add Missing Projects Section - for PROFESSIONAL users */}
+            {userType === "PROFESSIONAL" && missingProjectCount > 0 && (
+              <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-blue-50">
+                  <div className="px-6 py-4">
+                    <h4 className="text-md font-semibold text-blue-900 mb-4">
+                      Add Missing Projects ({missingProjectCount} remaining)
+                    </h4>
+                    <p className="text-sm text-blue-700 mb-4">
+                      Add projects on behalf of the user to complete their
+                      experience profile:
+                    </p>
+
+                    {Array.from(
+                      { length: Math.min(missingProjectCount, 3) },
+                      (_, index) => {
+                        const projectId = `new_${index}`;
+                        const project = newProjects[projectId] || {
+                          name: "",
+                          files: [],
+                        };
+                        const isLoading = uploadingProjects[projectId];
+
+                        return (
+                          <div
+                            key={projectId}
+                            className="mb-6 p-4 bg-white rounded-lg border border-blue-200"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Project Name
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Enter project name"
+                                  value={project.name}
+                                  onChange={(e) =>
+                                    setNewProjects((prev) => ({
+                                      ...prev,
+                                      [projectId]: {
+                                        ...project,
+                                        name: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Project Files
+                                </label>
+                                <div className="space-y-2">
+                                  {project.files.map(
+                                    (file: File, fileIndex: number) => (
+                                      <div
+                                        key={fileIndex}
+                                        className="flex items-center justify-between bg-gray-100 p-2 rounded-md"
+                                      >
+                                        <span className="text-sm text-gray-700 truncate">
+                                          {file.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updatedFiles = [
+                                              ...project.files,
+                                            ];
+                                            updatedFiles.splice(fileIndex, 1);
+                                            setNewProjects((prev) => ({
+                                              ...prev,
+                                              [projectId]: {
+                                                ...project,
+                                                files: updatedFiles,
+                                              },
+                                            }));
+                                          }}
+                                          className="text-red-500 hover:text-red-700"
+                                        >
+                                          <XMarkIcon className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <input
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => {
+                                      const files = Array.from(
+                                        e.target.files || [],
+                                      );
+                                      setNewProjects((prev) => ({
+                                        ...prev,
+                                        [projectId]: {
+                                          ...project,
+                                          files: [...project.files, ...files],
+                                        },
+                                      }));
+                                    }}
+                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 flex justify-end">
+                              {isLoading ? (
+                                <div className="flex items-center gap-2 text-blue-600">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                  <span className="text-sm">
+                                    Adding project...
+                                  </span>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleAddNewProject(
+                                      projectId,
+                                      project.name,
+                                      project.files,
+                                    )
+                                  }
+                                  disabled={
+                                    !project.name.trim() ||
+                                    project.files.length === 0 ||
+                                    isLoading
+                                  }
+                                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <PlusIcon className="w-4 h-4" />
+                                  <span className="text-sm font-medium">
+                                    Add Project
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Evaluation Criteria Instructions */}
             {userType.toLowerCase() === "fundi" &&
               !userData?.userProfile?.fundiEvaluation && (

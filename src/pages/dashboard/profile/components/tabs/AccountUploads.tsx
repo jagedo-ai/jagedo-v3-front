@@ -4,6 +4,7 @@ import { FiDownload, FiEye, FiUpload, FiTrash2, FiCheck, FiX, FiRefreshCw, FiChe
 import { FileText, Image, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { getMockUploadsForUserType } from "@/pages/data/mockUploads";
+import { getAdminRole } from "@/config/adminRoles";
 
 const STORAGE_KEY = "uploads_demo";
 
@@ -74,6 +75,9 @@ interface AccountUploadsProps {
 const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
   if (!userData) return <div className="p-8">Loading...</div>;
 
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   const [documents, setDocuments] = useState<Record<string, UploadedDocument>>({});
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
   const [isLoaded, setIsLoaded] = useState(false);
@@ -82,13 +86,20 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
   // Global actions dropdown state
   const [showGlobalActions, setShowGlobalActions] = useState(false);
 
-  // Action modal state
+  // Action modal state (single document)
   const [actionModal, setActionModal] = useState<{
     isOpen: boolean;
     docKey: string;
     action: "approve" | "reject" | "reupload" | null;
   }>({ isOpen: false, docKey: "", action: null });
   const [actionReason, setActionReason] = useState("");
+
+  // Bulk action modal state (return all / disapprove all)
+  const [bulkAction, setBulkAction] = useState<{
+    isOpen: boolean;
+    action: "return" | "disapprove" | null;
+  }>({ isOpen: false, action: null });
+  const [bulkReason, setBulkReason] = useState("");
 
   const userType = userData?.userType?.toLowerCase() || "";
   const accountType = userData?.accountType?.toLowerCase() || "";
@@ -298,6 +309,13 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
         reviewedBy: "Admin",
       },
     }));
+    // Associate/Agent: set user to partially verified
+    if (adminRole === "ASSOCIATE" || adminRole === "AGENT") {
+      updateUserInLocalStorage(userData.id, {
+        status: "PARTIALLY_VERIFIED",
+      });
+      Object.assign(userData, { status: "PARTIALLY_VERIFIED" });
+    }
     toast.success("Document approved");
     closeActionModal();
   };
@@ -345,6 +363,97 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
   const openActionModal = (docKey: string, action: "approve" | "reject" | "reupload") => {
     setActionModal({ isOpen: true, docKey, action });
     setActionReason("");
+  };
+
+  /* -------------------- Bulk Action Handlers -------------------- */
+  const handleBulkReturn = (reason: string) => {
+    const now = new Date().toISOString();
+    const uploadedDocs = allDocuments.filter(d => documents[d.key]);
+    if (uploadedDocs.length === 0) {
+      toast.info("No uploaded documents to return");
+      return;
+    }
+    setDocuments(prev => {
+      const updated = { ...prev };
+      uploadedDocs.forEach(doc => {
+        if (updated[doc.key]) {
+          updated[doc.key] = {
+            ...updated[doc.key],
+            status: "reupload_requested",
+            statusReason: reason,
+            statusDate: now,
+            reviewedBy: "Admin",
+          };
+        }
+      });
+      return updated;
+    });
+    // Revoke user verification and update status
+    updateUserInLocalStorage(userData.id, {
+      adminApproved: false,
+      approved: false,
+      status: "RETURNED",
+    });
+    Object.assign(userData, {
+      adminApproved: false,
+      approved: false,
+      status: "RETURNED",
+    });
+    toast.success(`${uploadedDocs.length} document(s) returned for re-upload`);
+    window.dispatchEvent(new Event('storage'));
+    setBulkAction({ isOpen: false, action: null });
+    setBulkReason("");
+  };
+
+  const handleBulkDisapprove = (reason: string) => {
+    const now = new Date().toISOString();
+    const uploadedDocs = allDocuments.filter(d => documents[d.key]);
+    if (uploadedDocs.length === 0) {
+      toast.info("No uploaded documents to disapprove");
+      return;
+    }
+    setDocuments(prev => {
+      const updated = { ...prev };
+      uploadedDocs.forEach(doc => {
+        if (updated[doc.key]) {
+          updated[doc.key] = {
+            ...updated[doc.key],
+            status: "rejected",
+            statusReason: reason,
+            statusDate: now,
+            reviewedBy: "Admin",
+          };
+        }
+      });
+      return updated;
+    });
+    // Revoke user verification and update status
+    updateUserInLocalStorage(userData.id, {
+      adminApproved: false,
+      approved: false,
+      status: "REJECTED",
+    });
+    Object.assign(userData, {
+      adminApproved: false,
+      approved: false,
+      status: "REJECTED",
+    });
+    toast.success(`${uploadedDocs.length} document(s) have been disapproved`);
+    window.dispatchEvent(new Event('storage'));
+    setBulkAction({ isOpen: false, action: null });
+    setBulkReason("");
+  };
+
+  const submitBulkAction = () => {
+    if (!bulkReason.trim()) {
+      toast.error("Please provide a reason");
+      return;
+    }
+    if (bulkAction.action === "return") {
+      handleBulkReturn(bulkReason);
+    } else if (bulkAction.action === "disapprove") {
+      handleBulkDisapprove(bulkReason);
+    }
   };
 
   const closeActionModal = () => {
@@ -629,11 +738,68 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
     );
   };
 
+  /* -------------------- Bulk Action Modal -------------------- */
+  const renderBulkActionModal = () => {
+    if (!bulkAction.isOpen) return null;
+
+    const configs = {
+      return: {
+        title: "Return All Documents",
+        description: "All uploaded documents will be sent back for re-upload. Please provide a reason:",
+        buttonText: "Return All",
+        buttonColor: "bg-amber-600 hover:bg-amber-700",
+      },
+      disapprove: {
+        title: "Disapprove All Documents",
+        description: "All uploaded documents will be rejected. Please provide a reason:",
+        buttonText: "Disapprove All",
+        buttonColor: "bg-red-600 hover:bg-red-700",
+      },
+    };
+
+    const config = configs[bulkAction.action!];
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{config.title}</h3>
+          <p className="text-sm text-gray-600 mb-4">{config.description}</p>
+          <textarea
+            autoFocus
+            value={bulkReason}
+            onChange={(e) => setBulkReason(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+            placeholder="Enter reason..."
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            rows={3}
+          />
+          <div className="flex gap-3 mt-4">
+            <button
+              type="button"
+              onClick={submitBulkAction}
+              className={`flex-1 py-2 px-4 text-white rounded-lg font-medium transition ${config.buttonColor}`}
+            >
+              {config.buttonText}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setBulkAction({ isOpen: false, action: null }); setBulkReason(""); }}
+              className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   /* -------------------- Main UI -------------------- */
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-center" />
       {renderActionModal()}
+      {renderBulkActionModal()}
 
       <div className="p-6 lg:p-8">
         <div className="max-w-6xl mx-auto">
@@ -648,47 +814,83 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
             <div className="flex items-center gap-3">
               <StatusBadge status={overallStatus as DocumentStatus} />
 
-              {/* Verify Button - Admin Only */}
-              {isAdmin && !userData?.adminApproved && (
-                <button
-                  onClick={() => {
-                    setIsVerifying(true);
-                    updateUserInLocalStorage(userData.id, {
-                      adminApproved: true,
-                      approved: true,
-                      status: "VERIFIED",
-                    });
-                    Object.assign(userData, {
-                      adminApproved: true,
-                      approved: true,
-                      status: "VERIFIED",
-                    });
-                    toast.success("User profile has been verified successfully!");
-                    setIsVerifying(false);
-                  }}
-                  disabled={isVerifying}
-                  className="flex items-center gap-2 py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isVerifying ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Verifying...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      Verify
-                    </>
-                  )}
-                </button>
-              )}
+              {/* Verify Button - Admin Only (requires experience approval for applicable user types) */}
+              {isAdmin && !userData?.adminApproved && adminRole !== "ASSOCIATE" && adminRole !== "AGENT" && (() => {
+                const needsExperience = ["fundi", "professional", "contractor"].includes(userType);
+                const experienceApproved = userData?.userProfile?.experienceApproved === true;
+                const canVerify = !needsExperience || experienceApproved;
 
-              {/* Verified Badge */}
+                return canVerify ? (
+                  <button
+                    onClick={() => {
+                      setIsVerifying(true);
+                      updateUserInLocalStorage(userData.id, {
+                        adminApproved: true,
+                        approved: true,
+                        status: "VERIFIED",
+                      });
+                      Object.assign(userData, {
+                        adminApproved: true,
+                        approved: true,
+                        status: "VERIFIED",
+                      });
+                      toast.success("User profile has been verified successfully!");
+                      setIsVerifying(false);
+                    }}
+                    disabled={isVerifying}
+                    className="flex items-center gap-2 py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isVerifying ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        Verify
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                    <AlertCircle className="w-4 h-4" />
+                    Approve experience first
+                  </span>
+                );
+              })()}
+
+              {/* Verified Badge + Disapprove */}
               {userData?.adminApproved && (
-                <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                  <CheckCircle className="w-4 h-4" />
-                  Verified
-                </span>
+                <>
+                  <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                    <CheckCircle className="w-4 h-4" />
+                    Verified
+                  </span>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateUserInLocalStorage(userData.id, {
+                          adminApproved: false,
+                          approved: false,
+                          status: "PENDING",
+                        });
+                        Object.assign(userData, {
+                          adminApproved: false,
+                          approved: false,
+                          status: "PENDING",
+                        });
+                        toast.success("User verification has been revoked.");
+                        window.dispatchEvent(new Event('storage'));
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
+                    >
+                      <FiX className="w-4 h-4" />
+                      Disapprove
+                    </button>
+                  )}
+                </>
               )}
 
               {/* Global Actions Dropdown - Admin Only */}
@@ -703,39 +905,10 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
                   </button>
                   {showGlobalActions && (
                     <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                      {/* Approve All */}
                       <button
                         onClick={() => {
                           setShowGlobalActions(false);
-                          // Edit mode - could toggle edit state
-                          toast.info("Edit mode enabled - you can now modify documents");
-                        }}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition border-b border-gray-100"
-                      >
-                        <FiRefreshCw className="w-4 h-4" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowGlobalActions(false);
-                          // Return - request reupload for all pending documents
-                          const pendingDocs = allDocuments.filter(d => documents[d.key]?.status === "pending");
-                          if (pendingDocs.length > 0) {
-                            pendingDocs.forEach(doc => {
-                              openActionModal(doc.key, "reupload");
-                            });
-                          } else {
-                            toast.info("No pending documents to return");
-                          }
-                        }}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-amber-700 hover:bg-amber-50 transition border-b border-gray-100"
-                      >
-                        <FiRefreshCw className="w-4 h-4" />
-                        Return
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowGlobalActions(false);
-                          // Approve all pending documents
                           const pendingDocs = allDocuments.filter(d =>
                             documents[d.key] && documents[d.key].status !== "approved"
                           );
@@ -756,15 +929,53 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
                               });
                               return updated;
                             });
+                            if (adminRole === "ASSOCIATE" || adminRole === "AGENT") {
+                              updateUserInLocalStorage(userData.id, { status: "PARTIALLY_VERIFIED" });
+                              Object.assign(userData, { status: "PARTIALLY_VERIFIED" });
+                            }
                             toast.success(`${pendingDocs.length} document(s) approved`);
                           } else {
                             toast.info("All documents are already approved");
                           }
                         }}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-green-700 hover:bg-green-50 transition"
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-green-700 hover:bg-green-50 transition border-b border-gray-100"
                       >
                         <FiCheck className="w-4 h-4" />
-                        Approve
+                        Approve All
+                      </button>
+                      {/* Return All */}
+                      <button
+                        onClick={() => {
+                          setShowGlobalActions(false);
+                          const uploadedDocs = allDocuments.filter(d => documents[d.key]);
+                          if (uploadedDocs.length > 0) {
+                            setBulkAction({ isOpen: true, action: "return" });
+                            setBulkReason("");
+                          } else {
+                            toast.info("No uploaded documents to return");
+                          }
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-amber-700 hover:bg-amber-50 transition border-b border-gray-100"
+                      >
+                        <FiRefreshCw className="w-4 h-4" />
+                        Return
+                      </button>
+                      {/* Disapprove All */}
+                      <button
+                        onClick={() => {
+                          setShowGlobalActions(false);
+                          const uploadedDocs = allDocuments.filter(d => documents[d.key]);
+                          if (uploadedDocs.length > 0) {
+                            setBulkAction({ isOpen: true, action: "disapprove" });
+                            setBulkReason("");
+                          } else {
+                            toast.info("No uploaded documents to disapprove");
+                          }
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-700 hover:bg-red-50 transition"
+                      >
+                        <FiX className="w-4 h-4" />
+                        Disapprove All
                       </button>
                     </div>
                   )}
@@ -816,7 +1027,8 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
             <DocumentSection title="Certifications" docs={certifications} />
           )}
 
-          {portfolios.length > 0 && (
+          {/* Hide portfolios section in admin view for builders and customers */}
+          {portfolios.length > 0 && !isAdmin && (
             <DocumentSection title="Portfolios (Optional)" docs={portfolios} />
           )}
 

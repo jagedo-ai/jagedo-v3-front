@@ -153,17 +153,28 @@ const handleSubmit = (e) => {
 // 1. Find user by email / username
 const username = formData.email.trim();
 
-const user = MOCK_USERS.find(
+// First check MOCK_USERS
+let user = MOCK_USERS.find(
   (u) => u.username === username
 );
+
+// If not found, check mock_users_db (new signups)
+if (!user) {
+  const mockUsersDb = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
+  user = mockUsersDb.find(
+    (u) => u.email === username
+  );
+}
 
 if (!user) {
   toast.error("User not found");
   return;
 }
 
-// 2. Login using real user data
-completeLogin(user.username, user.password);
+// 2. Login using real user data - use email for new signups, username for mock users
+const loginUsername = user.username || user.email;
+const loginPassword = user.password;
+completeLogin(loginUsername, loginPassword);
 return;
 
   }
@@ -291,23 +302,58 @@ return;
 // };
 
 const completeLogin = (username, password) => {
-  const user = MOCK_USERS.find(
+  // First check hardcoded MOCK_USERS
+  let user = MOCK_USERS.find(
     (u) => u.username === username && u.password === password
   );
+
+  // If not found in MOCK_USERS, check mock_users_db localStorage (new signups)
+  if (!user) {
+    const mockUsersDb = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
+    user = mockUsersDb.find(
+      (u) => u.email === username && u.password === password
+    );
+
+    // If found in mock_users_db, also get the full builder data
+    if (user) {
+      const builders = JSON.parse(localStorage.getItem("builders") || "[]");
+      const builderData = builders.find((b) => b.email === username || b.id === user.id);
+      if (builderData) {
+        // Merge builder data into user object
+        user = { ...user, ...builderData };
+      }
+    }
+  }
 
   if (!user) {
     toast.error("Invalid credentials");
     return;
   }
 
-  const key = username.split("@")[0]; 
-  const profile = MOCK_PROFILES[key];
+  // For MOCK_USERS, use MOCK_PROFILES; for new signups, skip profiles lookup
+  const key = username.split("@")[0];
+  const profile = MOCK_PROFILES[key] || null;
+
+  // Clear any previous user data to prevent data leaking between accounts
+  // Remove old shared localStorage keys that might have data from other users
+  localStorage.removeItem("profile");
+  localStorage.removeItem("address");
+  localStorage.removeItem("fundi_experience");
+  localStorage.removeItem("professional_experience");
+  localStorage.removeItem("docs-fundi");
+  localStorage.removeItem("docs-professional");
+  localStorage.removeItem("docs-contractor");
+  localStorage.removeItem("docs-customer");
+  localStorage.removeItem("docs-hardware");
+  localStorage.removeItem("contractor-categories");
+  localStorage.removeItem("contractor-category-docs");
+  localStorage.removeItem("showVerificationMessage");
 
   localStorage.setItem("user", JSON.stringify(user));
   if (profile) {
     localStorage.setItem("profile", JSON.stringify(profile));
   }
-  localStorage.setItem("token", "mock-token"); // 🔥 REQUIRED
+  localStorage.setItem("token", "mock-token");
 
   setUser({ ...user, profile });
   setIsLoggedIn(true);

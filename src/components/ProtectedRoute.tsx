@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { getAdminRole, roleBlockedRoutes } from "@/config/adminRoles";
 
 // Define the User type according to the provided user object structure
 interface User {
@@ -16,6 +17,7 @@ interface User {
   contactPhone: string;
   contactEmail: string;
   userType: string;
+  adminRole?: string;
   admin_approved?: boolean; // Only present for fundi, contractor, professional
   [key: string]: any; // Allow for extra properties
 }
@@ -65,6 +67,17 @@ const ProtectedRoute = ({
   // If admin approval is required (for fundi, contractor, professional)
   if (requireAdminApproved && user.adminApproved === false) {
     return <Navigate to={fallbackIfNotApproved} state={{ from: location }} replace />;
+  }
+
+  // For ADMIN users, check sub-role route restrictions
+  if (user.userType === "ADMIN") {
+    const adminRole = getAdminRole(user);
+    if (adminRole) {
+      const blocked = roleBlockedRoutes[adminRole];
+      if (blocked.some(route => location.pathname.startsWith(route))) {
+        return <Navigate to="/dashboard/admin" replace />;
+      }
+    }
   }
 
   // Authorized, render children

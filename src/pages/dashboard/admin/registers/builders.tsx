@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { getAdminRole } from "@/config/adminRoles";
 import { kenyanLocations } from "@/data/kenyaLocations";
 import {
   mockBuilders,
@@ -53,6 +54,10 @@ const getTypeColumnHeader = (type: UserType): string => {
 };
 
 export default function BuildersAdmin() {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+  const hideVerified = adminRole === "ASSOCIATE" || adminRole === "AGENT";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [activeTab, setActiveTab] = useState<UserType>("FUNDI");
@@ -119,6 +124,11 @@ export default function BuildersAdmin() {
 
   const filteredBuilders = builders.filter((builder) => {
     const matchesTab = builder.userType === activeTab;
+
+    // Hide verified users from Associate and Agent roles
+    const status = resolveStatus(builder);
+    if (hideVerified && status === "VERIFIED") return false;
+
     const matchesName =
       !filters.name ||
       builder.firstName?.toLowerCase().includes(filters.name.toLowerCase()) ||
@@ -128,7 +138,6 @@ export default function BuildersAdmin() {
     const matchesCounty =
       !filters.county || builder.county?.toLowerCase() === filters.county.toLowerCase();
 
-    const status = resolveStatus(builder);
     const matchesVerificationStatus =
       !filters.verificationStatus ||
       STATUS_LABELS[status] === filters.verificationStatus;
@@ -175,7 +184,11 @@ export default function BuildersAdmin() {
           {/* Navigation tabs */}
           <div className="flex flex-nowrap gap-2 w-full overflow-x-auto md:overflow-visible">
             {navItems.map((nav) => {
-              const count = builders.filter((b) => b.userType === nav.name).length;
+              const count = builders.filter((b) => {
+                if (b.userType !== nav.name) return false;
+                if (hideVerified && resolveStatus(b) === "VERIFIED") return false;
+                return true;
+              }).length;
               return (
                 <Button
                   key={nav.name}

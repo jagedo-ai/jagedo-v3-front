@@ -12,8 +12,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast, Toaster } from "sonner"
 import { verifyOtp } from "@/api/auth.api"
-import { getAllCountries } from "@/api/countries.api";
-import { counties } from "@/pages/data/counties"
 import GoogleSignIn from "@/components/GoogleSignIn";
 import { getPasswordStrength } from "./PasswordStrength";
 interface CustomerSignupFormProps {
@@ -49,12 +47,6 @@ export function CustomerSignupForm({
   const [timerActive, setTimerActive] = useState(false);
   const [hasInitialOtpBeenSent, setHasInitialOtpBeenSent] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
-  const [countries, setCountries] = useState<any[]>([]);
-  const [isLoadingCountries, setIsLoadingCountries] = useState(true);
-
-  // Local search states (added)
-  const [countrySearch, setCountrySearch] = useState("");
-  const [countySearchLocal, setCountySearchLocal] = useState("");
 
   // OTP timer countdown effect
   useEffect(() => {
@@ -78,42 +70,6 @@ export function CustomerSignupForm({
   }, [timerActive]);
 
 
-  useEffect(() => {
-    // OTP timer countdown effect
-    let interval: NodeJS.Timeout | null = null;
-
-    if (timerActive && otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => {
-          if (prev <= 1) {
-            setTimerActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    // Fetch countries on mount
-    const fetchCountries = async () => {
-      try {
-        const data = await getAllCountries(); // Assuming getAllCountries is self-contained
-        //@ts-ignore
-        setCountries(data.hashSet);
-      } catch (error) {
-        console.error("Failed to fetch countries:", error);
-        toast.error("Could not load country list.");
-      } finally {
-        setIsLoadingCountries(false);
-      }
-    };
-
-    fetchCountries();
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timerActive]);
 
 
 
@@ -168,12 +124,6 @@ export function CustomerSignupForm({
           newErrors.otp = "Please enter a valid 6-digit code"
         }
         break
-        case 6:
-        if (!formData.country) newErrors.country = "Country is required";
-         if (formData.country === "Kenya" && !formData.county)
-         newErrors.county = "County is required";
-        break;
-
       // case 6:
       //   if (formData.accountType === "INDIVIDUAL") {
       //     if (!formData.firstName) {
@@ -353,10 +303,10 @@ export function CustomerSignupForm({
     nextStep(); // Auto-advance to next step after verification
   }
 
-  // Reset OTP verification if OTP or method changes
+  // Reset OTP verification only if OTP method changes (not when OTP value changes during verification)
   useEffect(() => {
     setIsOtpVerified(false)
-  }, [formData.otp, formData.otpMethod])
+  }, [formData.otpMethod])
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -711,95 +661,6 @@ export function CustomerSignupForm({
             </div>
           </div>
         )
-case 6:
-  return (
-    <div className="space-y-6 animate-fade-in max-w-md mx-auto">
-      <div className="flex flex-col items-center">
-        <img src="/jagedologo.png" alt="JaGedo Logo" className="h-12 mb-4" />
-        <h2 className="text-2xl font-semibold text-[rgb(0,0,122)]">
-          Location Details
-        </h2>
-      </div>
-
-      {/* Country */}
-      <div className="space-y-2">
-        <Label>Country</Label>
-        <Select
-          value={formData.country}
-          onValueChange={(value) => updateFormData({ country: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select country" />
-          </SelectTrigger>
-          <SelectContent className="bg-white">
-            <div className="px-2 py-1">
-              <Input
-                placeholder="Search country..."
-                value={countrySearch}
-                onChange={(e) => setCountrySearch(e.target.value)}
-              />
-            </div>
-
-            <div className="max-h-60 overflow-y-auto">
-              {countries
-                .filter((c) => (c.name || "").toLowerCase().includes(countrySearch.toLowerCase()))
-                .map((c) => (
-                <SelectItem key={c.name} value={c.name}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </div>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* County (SEARCHABLE) */}
-      {formData.country?.toLowerCase() === "kenya" && (
-        <div className="space-y-2">
-          <Label>County</Label>
-
-          <Select
-            value={formData.county}
-            onValueChange={(value) =>
-              updateFormData({ county: value })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select county" />
-            </SelectTrigger>
-
-            <SelectContent className="bg-white">
-              <div className="px-2 py-1">
-                <Input
-                  placeholder="Search county..."
-                  onChange={(e) =>
-                    updateFormData({ countySearch: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="max-h-60 overflow-y-auto">
-                {Object.keys(counties)
-                  .filter((county) =>
-                    county
-                      .toLowerCase()
-                      .includes(
-                        (formData.countySearch || "").toLowerCase()
-                      )
-                  )
-                  .map((county) => (
-                    <SelectItem key={county} value={county}>
-                      {county}
-                    </SelectItem>
-                  ))}
-              </div>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-    </div>
-  )
-
       // case 6:
       //   if (formData.accountType === "INDIVIDUAL") {
       //     return (
@@ -988,20 +849,21 @@ case 6:
               
               </div>
               {/* Password Requirements Checklist */}
-              <div className="mt-2 space-y-1.5">
-                <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && formData.password.length >= 8 ? 'text-green-600' : 'text-red-500'}`}>
-                  {formData.password && formData.password.length >= 8 ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} At least 8 characters
-                </p>
-                <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
-                  {formData.password && /[A-Z]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One uppercase letter
-                </p>
-                <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[a-z]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
-                  {formData.password && /[a-z]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One lowercase letter
-                </p>
-                <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[^A-Za-z0-9]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
-                  {formData.password && /[^A-Za-z0-9]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One special character
-                </p>
-              </div>
+             <div className="mt-2 grid grid-cols-2 gap-2">
+  <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && formData.password.length >= 8 ? 'text-green-600' : 'text-red-500'}`}>
+      {formData.password && formData.password.length >= 8 ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} At least 8 characters
+  </p>
+  <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
+      {formData.password && /[A-Z]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One uppercase letter
+  </p>
+  <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[a-z]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
+      {formData.password && /[a-z]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One lowercase letter
+  </p>
+  <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[^A-Za-z0-9]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
+      {formData.password && /[^A-Za-z0-9]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One special character
+  </p>
+</div>
+
 
               {/* Confirm Password Input */}
               <div className="space-y-1">
@@ -1074,7 +936,7 @@ case 6:
   }
 
   //const isLastStep = currentStep === 8;
-  const isLastStep = currentStep === 7;
+  const isLastStep = currentStep === 6;
 
 
   return (

@@ -68,7 +68,9 @@ export const getOrderRequests = async (axiosInstance: any): Promise<any> => {
         });
         return response.data;
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Failed to fetch order requests");
+        // Return empty fallback when backend is unavailable (e.g. mock/dev mode)
+        console.warn("Could not fetch customer order requests:", error.message || error);
+        return { success: true, hashSet: [] };
     }
 };
 
@@ -128,7 +130,9 @@ export const getProviderOrderRequests = async (axiosInstance: any): Promise<any>
         });
         return response.data;
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Failed to fetch order requests");
+        // Return empty fallback when backend is unavailable (e.g. mock/dev mode)
+        console.warn("Could not fetch provider order requests:", error.message || error);
+        return { success: true, hashSet: [] };
     }
 };
 

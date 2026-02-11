@@ -1,5 +1,6 @@
 import React from 'react';
 import { User, Home, Upload, Briefcase, Package, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getAdminRole } from "@/config/adminRoles";
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
@@ -40,6 +41,9 @@ const productsItem = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, completionStatus = {} }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   // Determine which navigation items to show based on user type
   const getNavigationItems = () => {
     if (userType === 'CUSTOMER') {
@@ -53,7 +57,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, com
     return [...baseNavigationItems, experienceItem, uploadsItem, productsItem];
   };
 
-  const navigationItems = getNavigationItems();
+  const navigationItems = getNavigationItems().filter(item => {
+    if (adminRole === "AGENT" && item.id === "address") return false;
+    return true;
+  });
 
   const getUserTypeLabel = () => {
     switch (userType) {
@@ -160,13 +167,26 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, com
                     {isOptional && <span className="text-xs text-gray-400 ml-1">(Optional)</span>}
                   </span>
 
-                  {!isOptional && (
-                    isComplete ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                    )
-                  )}
+             {!isOptional && (
+  // For experience and uploads: tick when complete, "Incomplete" text when not
+  (item.id === 'experience' || item.id === 'account-uploads') ? (
+    isComplete ? (
+      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+    ) : (
+      <span className="ml-auto text-xs font-semibold px-2 py-1 rounded-full text-red-700 bg-red-100">
+        Incomplete
+      </span>
+    )
+  ) : (
+    // For all other items, keep the original icons
+    isComplete ? (
+      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+    ) : (
+      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+    )
+  )
+)}
+
                 </button>
               </li>
             );
