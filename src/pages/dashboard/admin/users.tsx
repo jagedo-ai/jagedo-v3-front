@@ -217,7 +217,7 @@ export default function UsersAdmin() {
                       <td className="text-center p-2 border-r border-border"><PermissionIcon allowed={resource.permissions[role as keyof RolePermissions].add} /></td>
                       <td className="text-center p-2 border-r border-border"><PermissionIcon allowed={resource.permissions[role as keyof RolePermissions].edit} /></td>
                       <td className="text-center p-2 border-r border-border"><PermissionIcon allowed={resource.permissions[role as keyof RolePermissions].approve} /></td>
-                      <td className="text-center p-2 border-r border-border"><PermissionIcon allowed={resource.permissions[role as keyof ].delete} /></td>
+                      <td className="text-center p-2 border-r border-border"><PermissionIcon allowed={resource.permissions[role as keyof RolePermissions].delete} /></td>
                     </React.Fragment>
                   ))}
                 </tr>

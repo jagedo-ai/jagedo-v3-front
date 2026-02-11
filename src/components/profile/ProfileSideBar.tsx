@@ -65,8 +65,8 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
         customer: ['businessPermit', 'certificateOfIncorporation', 'kraPIN'],
         fundi: ['idFront', 'idBack', 'certificate', 'kraPIN'],
         professional: ['idFront', 'idBack', 'academicCertificate', 'cv', 'kraPIN', 'practiceLicense'],
-        contractor: ['businessRegistration', 'businessPermit', 'kraPIN', 'companyProfile'],
-        hardware: ['certificateOfIncorporation', 'kraPIN', 'singleBusinessPermit', 'companyProfile'],
+        contractor: ['certificateOfIncorporation', 'businessPermit', 'kraPIN', 'companyProfile'],
+        hardware: ['certificateOfIncorporation', 'businessPermit', 'kraPIN', 'companyProfile'],
       };
       return docMap[userType] || [];
     };
@@ -75,36 +75,57 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
     console.log('Uploaded docs:', uploadedDocs);
     const requiredDocs = getRequiredDocuments();
     
-    // Check if ALL required documents exist and have truthy values
+    // Check if ALL required documents exist, have truthy values, and are not rejected/returned
     const uploadsComplete = requiredDocs.length > 0 && requiredDocs.every(doc => {
       const value = uploadedDocs[doc];
-      return value && value !== '' && value !== null && value !== undefined;
+      if (!value || value === '' || value === null || value === undefined) return false;
+      // If the document has a status field, check it's not rejected or returned
+      if (typeof value === 'object' && value.status) {
+        return value.status !== 'rejected' && value.status !== 'reupload_requested';
+      }
+      return true;
     });
     
     console.log('Uploads complete:', uploadsComplete, 'Required:', requiredDocs, 'Uploaded:', uploadedDocs);
 
-    // Check Experience completion
+    // Check Experience completion (userProfile first, then localStorage fallback)
     let experienceComplete = false;
     if (userType !== 'customer' && userType !== 'hardware') {
       const profile = user?.userProfile || {};
-      
+
       if (userType === 'fundi') {
-        const hasGrade = !!profile.grade;
-        const hasExperience = !!profile.experience;
-        const hasProjects = profile.previousJobPhotoUrls?.length > 0;
-        experienceComplete = hasGrade && hasExperience && hasProjects;
+        experienceComplete = !!(profile.grade && profile.experience && profile.previousJobPhotoUrls?.length > 0);
+        if (!experienceComplete) {
+          try {
+            const saved = localStorage.getItem(`fundi_experience_${user?.id}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              experienceComplete = !!parsed.grade && !!parsed.experience && parsed.attachments?.some((a: any) => a.projectName && a.files?.length > 0);
+            }
+          } catch { /* ignore */ }
+        }
       } else if (userType === 'professional') {
-        const hasProfession = !!profile.profession;
-        const hasLevel = !!profile.professionalLevel;
-        const hasYears = !!profile.yearsOfExperience;
-        const hasProjects = profile.professionalProjects?.length > 0;
-        experienceComplete = hasProfession && hasLevel && hasYears && hasProjects;
+        experienceComplete = !!(profile.profession && profile.professionalLevel && profile.yearsOfExperience && profile.professionalProjects?.length > 0);
+        if (!experienceComplete) {
+          try {
+            const saved = localStorage.getItem(`professional_experience_${user?.id}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              experienceComplete = !!parsed.category && !!parsed.level && !!parsed.experience && parsed.attachments?.some((a: any) => a.projectName && a.files?.length > 0);
+            }
+          } catch { /* ignore */ }
+        }
       } else if (userType === 'contractor') {
-        const hasType = !!profile.contractorType;
-        const hasLevel = !!profile.licenseLevel;
-        const hasExperience = !!profile.contractorExperiences;
-        const hasProjects = profile.contractorProjects?.length > 0;
-        experienceComplete = hasType && hasLevel && hasExperience && hasProjects;
+        experienceComplete = !!(profile.contractorType && profile.licenseLevel && profile.contractorExperiences && profile.contractorProjects?.length > 0);
+        if (!experienceComplete) {
+          try {
+            const saved = localStorage.getItem(`contractorExperience_${user?.id}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              experienceComplete = parsed.categories?.length > 0 && parsed.categories.every((c: any) => c.category && c.categoryClass && c.yearsOfExperience);
+            }
+          } catch { /* ignore */ }
+        }
       }
     } else {
       experienceComplete = true;
@@ -180,19 +201,17 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
       >
         <ListItemPrefix>{item.icon}</ListItemPrefix>
         <span className="hidden sm:inline whitespace-nowrap">{item.label}</span>
-  {/* ✅ Status TEXT for Uploads & Experience, icons for others */}
+  {/* ✅ Status: tick icon for complete, "Incomplete" text for uploads/experience, icon for others */}
 {showStatus && (
   <span className="hidden sm:inline ml-auto">
     {(item.id === "Account Uploads" || item.id === "Experience") ? (
-      <span
-        className={`text-xs font-semibold px-2 py-1 rounded-full ${
-          isComplete
-            ? "text-green-700 bg-green-100"
-            : "text-red-700 bg-red-100"
-        }`}
-      >
-        {isComplete ? "Complete" : "Incomplete"}
-      </span>
+      isComplete ? (
+        <CheckCircle2 className="h-5 w-5 text-green-600" />
+      ) : (
+        <span className="text-xs font-semibold px-2 py-1 rounded-full text-red-700 bg-red-100">
+          Incomplete
+        </span>
+      )
     ) : (
       isComplete ? (
         <CheckCircle2 className="h-5 w-5 text-green-600" />
