@@ -20,6 +20,9 @@ interface ContractorCategory {
   specialization: string;
   categoryClass: string;
   yearsOfExperience: string;
+  isEditing?: boolean;
+  certificateFile?: File | null;
+  licenseFile?: File | null;
 }
 
 interface ContractorProject {
@@ -84,6 +87,7 @@ const ContractorExperience = () => {
     {
       id: "1",
       category: "Building Works",
+      specialization: "",
       categoryClass: "NCA 3",
       yearsOfExperience: "5-10 years",
       isEditing: false,
@@ -120,6 +124,7 @@ const ContractorExperience = () => {
           console.error("Error parsing stored data:", error);
         }
       }
+ Davy
       // Pre-populate from signup data if available
       const contractorType = user?.userProfile?.contractorType || user?.contractorTypes || "";
       if (contractorType) {
@@ -145,13 +150,85 @@ const ContractorExperience = () => {
             projectFile: null,
             referenceLetterFile: null,
           });
+
+      // Pre-populate from userProfile.contractorExperiences if available
+      const existingExperiences = user?.userProfile?.contractorExperiences;
+      if (Array.isArray(existingExperiences) && existingExperiences.length > 0) {
+        const initialCategories: ContractorCategory[] = [];
+        const initialProjects: ContractorProject[] = [];
+
+        existingExperiences.forEach((exp: any) => {
+          const catId = crypto.randomUUID();
+          initialCategories.push({
+            id: catId,
+            category: exp.category || "",
+            specialization: exp.specialization || "",
+            categoryClass: exp.categoryClass || "",
+            yearsOfExperience: exp.yearsOfExperience || "",
+          });
+          // Check for existing projects linked to this category
+          const existingProjects = user?.userProfile?.contractorProjects;
+          if (Array.isArray(existingProjects) && existingProjects.length > 0) {
+            existingProjects.forEach((proj: any) => {
+              initialProjects.push({
+                id: crypto.randomUUID(),
+                categoryId: catId,
+                projectName: proj.projectName || "",
+                projectFile: proj.projectFile || proj.fileUrl || null,
+                referenceLetterFile: proj.referenceLetterUrl || null,
+              });
+            });
+          } else {
+            initialProjects.push({
+              id: crypto.randomUUID(),
+              categoryId: catId,
+              projectName: `${exp.category || "Category"} Project`,
+              projectFile: null,
+              referenceLetterFile: null,
+            });
+          } chei
         });
 
         setCategories(initialCategories);
         setProjects(initialProjects);
-      } else {
+      } else Davy
         setCategories([]);
         setProjects([]);
+=======
+        // Fallback: Pre-populate from signup contractorTypes field
+        const contractorType = user?.contractorTypes || user?.userProfile?.contractorType || "";
+        if (contractorType) {
+          // Split comma-separated slugs and map each to a display name
+          const slugs = contractorType.split(",").filter(Boolean);
+          const initialCategories: ContractorCategory[] = [];
+          const initialProjects: ContractorProject[] = [];
+
+          slugs.forEach((slug: string) => {
+            const displayName = resolveContractorCategory(slug);
+            const catId = crypto.randomUUID();
+            initialCategories.push({
+              id: catId,
+              category: displayName,
+              specialization: "",
+              categoryClass: "",
+              yearsOfExperience: "",
+            });
+            initialProjects.push({
+              id: crypto.randomUUID(),
+              categoryId: catId,
+              projectName: `${displayName} Project`,
+              projectFile: null,
+              referenceLetterFile: null,
+            });
+          });
+
+          setCategories(initialCategories);
+          setProjects(initialProjects);
+        } else {
+          setCategories([]);
+          setProjects([]);
+        }
+ chei
       }
       setIsLoadingProfile(false);
       // try {

@@ -65,8 +65,8 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
         customer: ['businessPermit', 'certificateOfIncorporation', 'kraPIN'],
         fundi: ['idFront', 'idBack', 'certificate', 'kraPIN'],
         professional: ['idFront', 'idBack', 'academicCertificate', 'cv', 'kraPIN', 'practiceLicense'],
-        contractor: ['businessRegistration', 'businessPermit', 'kraPIN', 'companyProfile'],
-        hardware: ['certificateOfIncorporation', 'kraPIN', 'singleBusinessPermit', 'companyProfile'],
+        contractor: ['certificateOfIncorporation', 'businessPermit', 'kraPIN', 'companyProfile'],
+        hardware: ['certificateOfIncorporation', 'businessPermit', 'kraPIN', 'companyProfile'],
       };
       return docMap[userType] || [];
     };
@@ -264,7 +264,7 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
   // 5 Products (only professional/fundi & verified)
   if ((userType === "professional" || userType === "fundi") && verified) {
     finalNavItems.push(productsItem);
-  }
+  }                                                                                                                                                                                             
 
   // 6 Activities ALWAYS LAST
   finalNavItems.push(activitiesItem);
@@ -274,7 +274,7 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
       <div className="p-2 sm:p-4 lg:p-6">
         <button
           onClick={handleBack}
-          className="flex items-center justify-center sm:justify-start w-full gap-3 text-gray-700 hover:text-blue-600 transition-colors mb-4 p-2 rounded-lg hover:bg-gray-100"
+          className="flex items-center justify-center sm:justify-start w-full gap-3 text-gray-700 hover:text-blue-600 tr ansition-colors mb-4 p-2 rounded-lg hover:bg-gray-100"
         >
           <FaArrowLeft className="h-5 w-5" />
           <span className="font-semibold hidden sm:inline">Back</span>
@@ -285,7 +285,7 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
             Profile Management
           </Typography>
           <Typography variant="small" color="gray" className="mt-1">
-            Manage your account settings
+            Manage your account settings   fg
           </Typography>
         </div>
 
