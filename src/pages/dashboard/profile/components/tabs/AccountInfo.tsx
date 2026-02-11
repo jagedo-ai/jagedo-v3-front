@@ -116,50 +116,47 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
   // --- Load persisted image from localStorage on component mount ---
   useEffect(() => {
     try {
+      const matchId = (a: any, b: any) => String(a) === String(b);
       // Try loading from users array first
       let image = null;
-      
+
       const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-      const foundUser = storedUsers.find((u: any) => u.id === userData.id);
+      const foundUser = storedUsers.find((u: any) => matchId(u.id, userData.id));
       if (foundUser?.userProfile?.profileImage) {
         image = foundUser.userProfile.profileImage;
-        console.log("✅ Image loaded from users array");
       }
-      
+
       // If not found, try builders array
       if (!image) {
         const storedBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
-        const foundBuilder = storedBuilders.find((b: any) => b.id === userData.id);
+        const foundBuilder = storedBuilders.find((b: any) => matchId(b.id, userData.id));
         if (foundBuilder?.userProfile?.profileImage) {
           image = foundBuilder.userProfile.profileImage;
-          console.log("✅ Image loaded from builders array");
         }
       }
-      
+
+      // If not found, try customers array
+      if (!image) {
+        const storedCustomers = JSON.parse(localStorage.getItem("customers") || "[]");
+        const foundCustomer = storedCustomers.find((c: any) => matchId(c.id, userData.id));
+        if (foundCustomer?.userProfile?.profileImage) {
+          image = foundCustomer.userProfile.profileImage;
+        }
+      }
+
       // If not found, try user key
       if (!image) {
         const singleUser = JSON.parse(localStorage.getItem("user") || "null");
-        if (singleUser?.id === userData.id && singleUser?.userProfile?.profileImage) {
+        if (singleUser && matchId(singleUser.id, userData.id) && singleUser?.userProfile?.profileImage) {
           image = singleUser.userProfile.profileImage;
-          console.log("✅ Image loaded from user key");
         }
       }
-      
-      // If not found, try profile key
-      if (!image) {
-        const profileData = JSON.parse(localStorage.getItem("profile") || "null");
-        if (profileData?.id === userData.id && profileData?.userProfile?.profileImage) {
-          image = profileData.userProfile.profileImage;
-          console.log("✅ Image loaded from profile key");
-        }
-      }
-      
+
       // If still not found, use passed prop
       if (!image && userData?.userProfile?.profileImage) {
         image = userData.userProfile.profileImage;
-        console.log("✅ Image loaded from userData prop");
       }
-      
+
       if (image) {
         setAvatarSrc(image);
       }
@@ -208,8 +205,10 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
         // Persist to all localStorage keys
         try {
           // Update "users" array
+          const imgMatchId = (a: any, b: any) => String(a) === String(b);
+
           const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-          const userIdx = storedUsers.findIndex((u: any) => u.id === userData.id);
+          const userIdx = storedUsers.findIndex((u: any) => imgMatchId(u.id, userData.id));
           if (userIdx !== -1) {
             storedUsers[userIdx] = deepMerge(storedUsers[userIdx], {
               userProfile: {
@@ -218,12 +217,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               },
             });
             localStorage.setItem("users", JSON.stringify(storedUsers));
-            console.log("✅ Image saved to users array");
           }
 
           // Update "builders" array
           const storedBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
-          const builderIdx = storedBuilders.findIndex((b: any) => b.id === userData.id);
+          const builderIdx = storedBuilders.findIndex((b: any) => imgMatchId(b.id, userData.id));
           if (builderIdx !== -1) {
             storedBuilders[builderIdx] = deepMerge(storedBuilders[builderIdx], {
               userProfile: {
@@ -232,12 +230,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               },
             });
             localStorage.setItem("builders", JSON.stringify(storedBuilders));
-            console.log("✅ Image saved to builders array");
           }
 
           // Update single "user" key
           const singleUser = JSON.parse(localStorage.getItem("user") || "null");
-          if (singleUser && singleUser.id === userData.id) {
+          if (singleUser && imgMatchId(singleUser.id, userData.id)) {
             const updated = deepMerge(singleUser, {
               userProfile: {
                 ...(singleUser.userProfile || {}),
@@ -245,25 +242,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               },
             });
             localStorage.setItem("user", JSON.stringify(updated));
-            console.log("✅ Image saved to user key");
-          }
-
-          // Update profile key (if exists)
-          const profileData = JSON.parse(localStorage.getItem("profile") || "null");
-          if (profileData && profileData.id === userData.id) {
-            const updated = deepMerge(profileData, {
-              userProfile: {
-                ...(profileData.userProfile || {}),
-                profileImage: base64String,
-              },
-            });
-            localStorage.setItem("profile", JSON.stringify(updated));
-            console.log("✅ Image saved to profile key");
           }
 
           // Update customers array if exists
           const storedCustomers = JSON.parse(localStorage.getItem("customers") || "[]");
-          const customerIdx = storedCustomers.findIndex((c: any) => c.id === userData.id);
+          const customerIdx = storedCustomers.findIndex((c: any) => imgMatchId(c.id, userData.id));
           if (customerIdx !== -1) {
             storedCustomers[customerIdx] = deepMerge(storedCustomers[customerIdx], {
               userProfile: {
@@ -272,7 +255,6 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               },
             });
             localStorage.setItem("customers", JSON.stringify(storedCustomers));
-            console.log("✅ Image saved to customers array");
           }
 
           event.target.value = ""; // Reset input
@@ -547,17 +529,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                     <span className={`text-sm font-semibold ${cfg.text}`}>
                       Status: {cfg.label}
                     </span>
-                    {/* Unverify button inline - visible when verified */}
-                    {isVerified && adminRole && (
-                      <button
-                        type="button"
-                        onClick={() => setPendingAction("unverify")}
-                        className="ml-auto flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-white border border-red-300 text-red-700 hover:bg-red-50 transition"
-                      >
-                        <ShieldOff className="w-4 h-4" />
-                        Unverify
-                      </button>
-                    )}
+                    {/* Unverify button is in the Actions dropdown below */}
                   </div>
                 );
               })()}
@@ -941,8 +913,8 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                 )}
               </div>
             </div>
-            {/* Actions Section - Always available for admin */}
-            {adminRole && (
+            {/* Actions Section - Only for verified users */}
+            {adminRole && isVerified && (
               <div className="mt-6 flex justify-between items-center flex-wrap gap-4">
                 {/* Actions dropdown */}
                 <div className="relative">
