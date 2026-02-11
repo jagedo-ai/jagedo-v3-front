@@ -114,6 +114,17 @@ const SPECIALIZATIONS_BY_CATEGORY: Record<string, string[]> = {
         "Renewable Energy Systems", "Control Systems", "Telecommunications",
         "Security Systems", "Fire Alarm Systems", "Energy Management",
     ],
+    ],
+    "Mechanical Engineer": [
+        "HVAC Systems", "Plumbing Systems", "Fire Protection Systems", "Elevator & Escalator Systems",
+        "Industrial Machinery", "Energy Systems", "Building Automation",
+        "Refrigeration Systems", "Ventilation Design", "Mechanical Maintenance",
+    ],
+    "Electrical Engineer": [
+        "Power Distribution", "Lighting Design", "Building Electrical Systems", "Industrial Electrical",
+        "Renewable Energy Systems", "Control Systems", "Telecommunications",
+        "Security Systems", "Fire Alarm Systems", "Energy Management",
+    ],
     "Surveyor": [
         "Land Surveying", "Topographic Surveys", "Construction Surveying", "Cadastral Surveys",
         "Engineering Surveys", "GPS & GIS Mapping", "Hydrographic Surveys",
@@ -141,6 +152,8 @@ const ProffExperience = () => {
     const { logout, user: contextUser, setUser } = useGlobalContext();
     const user = contextUser || (localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user") || "{}") : null);
     // Read profession from user data (set during signup)
+    const userProfession = user?.userProfile?.profession || user?.profession || "";
+    const [specialization, setSpecialization] = useState(userProfession || "");
     const userProfessionRaw = user?.userProfile?.profession || user?.profession || "";
     const userProfession = resolveProfession(userProfessionRaw);
     const [specialization, setSpecialization] = useState("");
@@ -170,6 +183,8 @@ const ProffExperience = () => {
             const saved = localStorage.getItem(storageKey);
             if (saved) {
                 const parsed = JSON.parse(saved);
+                const profFallback = user?.userProfile?.profession || user?.profession || "";
+                setCategory(parsed.category || profFallback);
                 const profFallback = resolveProfession(user?.userProfile?.profession || user?.profession || "");
                 setCategory(resolveProfession(parsed.category) || profFallback);
                 setSpecialization(parsed.specialization || "");

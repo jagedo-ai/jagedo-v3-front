@@ -860,12 +860,77 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
                 );
               })()}
 
-              {/* Verified Badge */}
+                return canVerify ? (
+                  <button
+                    onClick={() => {
+                      setIsVerifying(true);
+                      updateUserInLocalStorage(userData.id, {
+                        adminApproved: true,
+                        approved: true,
+                        status: "VERIFIED",
+                      });
+                      Object.assign(userData, {
+                        adminApproved: true,
+                        approved: true,
+                        status: "VERIFIED",
+                      });
+                      toast.success("User profile has been verified successfully!");
+                      setIsVerifying(false);
+                    }}
+                    disabled={isVerifying}
+                    className="flex items-center gap-2 py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isVerifying ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        Verify
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                    <AlertCircle className="w-4 h-4" />
+                    Approve experience first
+                  </span>
+                );
+              })()}
+
+              {/* Verified Badge + Disapprove */}
               {userData?.adminApproved && (
-                <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                  <CheckCircle className="w-4 h-4" />
-                  Verified
-                </span>
+                <>
+                  <span className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                    <CheckCircle className="w-4 h-4" />
+                    Verified
+                  </span>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateUserInLocalStorage(userData.id, {
+                          adminApproved: false,
+                          approved: false,
+                          status: "PENDING",
+                        });
+                        Object.assign(userData, {
+                          adminApproved: false,
+                          approved: false,
+                          status: "PENDING",
+                        });
+                        toast.success("User verification has been revoked.");
+                        window.dispatchEvent(new Event('storage'));
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
+                    >
+                      <FiX className="w-4 h-4" />
+                      Disapprove
+                    </button>
+                  )}
+                </>
               )}
 
               {/* Global Actions Dropdown - Admin Only */}
@@ -934,6 +999,23 @@ const AccountUploads = ({ userData, isAdmin = true }: AccountUploadsProps) => {
                       >
                         <FiRefreshCw className="w-4 h-4" />
                         Return
+                      </button>
+                      {/* Disapprove All */}
+                      <button
+                        onClick={() => {
+                          setShowGlobalActions(false);
+                          const uploadedDocs = allDocuments.filter(d => documents[d.key]);
+                          if (uploadedDocs.length > 0) {
+                            setBulkAction({ isOpen: true, action: "disapprove" });
+                            setBulkReason("");
+                          } else {
+                            toast.info("No uploaded documents to disapprove");
+                          }
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-700 hover:bg-red-50 transition"
+                      >
+                        <FiX className="w-4 h-4" />
+                        Disapprove All
                       </button>
                       {/* Disapprove All removed - only approve and return */}
                     </div>

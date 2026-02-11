@@ -124,6 +124,33 @@ const ContractorExperience = () => {
           console.error("Error parsing stored data:", error);
         }
       }
+ Davy
+      // Pre-populate from signup data if available
+      const contractorType = user?.userProfile?.contractorType || user?.contractorTypes || "";
+      if (contractorType) {
+        // Split comma-separated slugs and map each to a display name
+        const slugs = contractorType.split(",").filter(Boolean);
+        const initialCategories: ContractorCategory[] = [];
+        const initialProjects: ContractorProject[] = [];
+
+        slugs.forEach((slug: string) => {
+          const displayName = resolveContractorCategory(slug);
+          const catId = crypto.randomUUID();
+          initialCategories.push({
+            id: catId,
+            category: displayName,
+            specialization: "",
+            categoryClass: "",
+            yearsOfExperience: "",
+          });
+          initialProjects.push({
+            id: crypto.randomUUID(),
+            categoryId: catId,
+            projectName: `${displayName} Project`,
+            projectFile: null,
+            referenceLetterFile: null,
+          });
+
       // Pre-populate from userProfile.contractorExperiences if available
       const existingExperiences = user?.userProfile?.contractorExperiences;
       if (Array.isArray(existingExperiences) && existingExperiences.length > 0) {
@@ -159,12 +186,15 @@ const ContractorExperience = () => {
               projectFile: null,
               referenceLetterFile: null,
             });
-          }
+          } chei
         });
 
         setCategories(initialCategories);
         setProjects(initialProjects);
-      } else {
+      } else Davy
+        setCategories([]);
+        setProjects([]);
+=======
         // Fallback: Pre-populate from signup contractorTypes field
         const contractorType = user?.contractorTypes || user?.userProfile?.contractorType || "";
         if (contractorType) {
@@ -198,6 +228,7 @@ const ContractorExperience = () => {
           setCategories([]);
           setProjects([]);
         }
+ chei
       }
       setIsLoadingProfile(false);
       // try {
