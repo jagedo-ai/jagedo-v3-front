@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useEffect } from "react";
-import { FiEdit, FiCheck, FiX } from "react-icons/fi";
-import { Star } from "lucide-react";
+import { FiEdit, FiCheck, FiX, FiChevronDown } from "react-icons/fi";
+import { Star, ShieldOff, Ban, AlertTriangle, Trash2, Clock } from "lucide-react";
+import { toast, Toaster } from "sonner";
+import { getAdminRole } from "@/config/adminRoles";
 
 interface AccountInfoProps {
   userData: any;
@@ -21,31 +23,39 @@ const deepMerge = (target: any, source: any): any => {
   return result;
 };
 
-// --- Helper: update a user in localStorage "users" array AND "builders" array ---
+// --- Helper: update a user in localStorage across all storage keys ---
 const updateUserInLocalStorage = (
-  userId: string,
+  userId: string | number,
   updates: Record<string, any>,
 ) => {
   try {
     // Update in "users" array
     const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-    const userIdx = storedUsers.findIndex((u: any) => u.id === userId);
+    const userIdx = storedUsers.findIndex((u: any) => u.id === userId || u.id === Number(userId) || u.id === String(userId));
     if (userIdx !== -1) {
       storedUsers[userIdx] = deepMerge(storedUsers[userIdx], updates);
       localStorage.setItem("users", JSON.stringify(storedUsers));
     }
 
-    // ALSO update in "builders" array to sync with admin dashboard
+    // Update in "builders" array to sync with admin dashboard
     const storedBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
-    const builderIdx = storedBuilders.findIndex((b: any) => b.id === userId);
+    const builderIdx = storedBuilders.findIndex((b: any) => b.id === userId || b.id === Number(userId) || b.id === String(userId));
     if (builderIdx !== -1) {
       storedBuilders[builderIdx] = deepMerge(storedBuilders[builderIdx], updates);
       localStorage.setItem("builders", JSON.stringify(storedBuilders));
     }
 
+    // Update in "customers" array to sync with admin dashboard
+    const storedCustomers = JSON.parse(localStorage.getItem("customers") || "[]");
+    const customerIdx = storedCustomers.findIndex((c: any) => c.id === userId || c.id === Number(userId) || c.id === String(userId));
+    if (customerIdx !== -1) {
+      storedCustomers[customerIdx] = deepMerge(storedCustomers[customerIdx], updates);
+      localStorage.setItem("customers", JSON.stringify(storedCustomers));
+    }
+
     // Also update the single "user" key if it matches
     const singleUser = JSON.parse(localStorage.getItem("user") || "null");
-    if (singleUser && singleUser.id === userId) {
+    if (singleUser && (singleUser.id === userId || singleUser.id === Number(userId) || singleUser.id === String(userId))) {
       localStorage.setItem(
         "user",
         JSON.stringify(deepMerge(singleUser, updates)),
@@ -57,22 +67,49 @@ const updateUserInLocalStorage = (
 };
 
 const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [askDeleteReason, setAskDeleteReason] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
   const [showActionDropdown, setShowActionDropdown] = useState(false);
+  // Action reason modal state
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [actionReason, setActionReason] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const showVerificationMessage = userData.adminApproved;
+
+  // Reactive status state
+  const [isVerified, setIsVerified] = useState(!!userData?.adminApproved);
+  const [isSuspended, setIsSuspended] = useState(!!userData?.suspended);
+  const [isBlacklisted, setIsBlacklisted] = useState(!!userData?.blacklisted);
+  const [isDeleted, setIsDeleted] = useState(false);
+
+  // Sync status when userData changes
+  useEffect(() => {
+    setIsVerified(!!userData?.adminApproved);
+    setIsSuspended(!!userData?.suspended);
+    setIsBlacklisted(!!userData?.blacklisted);
+  }, [userData?.adminApproved, userData?.suspended, userData?.blacklisted]);
+
+  const showVerificationMessage = isVerified;
   const [avatarSrc, setAvatarSrc] = useState(
     userData?.userProfile?.profileImage,
   );
 
   const [editingField, setEditingField] = useState<string | null>(null);
-  const name = `${userData.firstName ?? ""} ${userData.lastName ?? ""}`.trim();
+
+  // Handle display name - use organizationName for organizations, firstName + lastName for individuals
+  const isOrganization = userData?.accountType === "business" || userData?.accountType === "organization" ||
+                         userData?.userType === "CONTRACTOR" || userData?.userType === "HARDWARE";
+  const name = isOrganization && userData?.organizationName
+    ? userData.organizationName
+    : `${userData?.firstName ?? ""} ${userData?.lastName ?? ""}`.trim();
+
   const [editValues, setEditValues] = useState({
     name: name || "",
-    email: userData.email ?? "",
-    phoneNumber: userData.phoneNumber ?? "",
+    email: userData?.email ?? "",
+    phoneNumber: userData?.phoneNumber ?? "",
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -142,14 +179,14 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
       // Check file size (max 5MB)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
-        alert("Image size must be less than 5MB");
+        toast.error("Image size must be less than 5MB");
         event.target.value = ""; // Reset input
         return;
       }
 
       // Check file type
       if (!file.type.startsWith("image/")) {
-        alert("Please upload an image file");
+        toast.error("Please upload an image file");
         event.target.value = ""; // Reset input
         return;
       }
@@ -239,15 +276,15 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
           }
 
           event.target.value = ""; // Reset input
-          alert("Image uploaded successfully and persisted!");
+          toast.success("Image uploaded successfully!");
         } catch (err) {
           console.error("Error persisting image:", err);
-          alert("Image uploaded but failed to persist. Please try again.");
+          toast.error("Image uploaded but failed to persist. Please try again.");
           event.target.value = ""; // Reset input
         }
       };
       reader.onerror = () => {
-        alert("Failed to read image file");
+        toast.error("Failed to read image file");
         event.target.value = ""; // Reset input
       };
       reader.readAsDataURL(file); // Convert file to Base64
@@ -265,12 +302,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
 
   const handleSubmitReason = () => {
     if (deleteReason.trim()) {
-      // Replace with actual delete logic
-      alert(`Deleted for reason: ${deleteReason}`);
+      handleDeleteUser(deleteReason);
       setAskDeleteReason(false);
       setDeleteReason("");
     } else {
-      alert("Please enter a reason.");
+      toast.error("Please enter a reason for deletion.");
     }
   };
 
@@ -279,8 +315,8 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
     setEditingField(field);
     setEditValues({
       name: name || "",
-      email: userData.email || "",
-      phoneNumber: userData.phoneNumber || "",
+      email: userData?.email || "",
+      phoneNumber: userData?.phoneNumber || "",
     });
   };
 
@@ -288,8 +324,8 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
     setEditingField(null);
     setEditValues({
       name: name || "",
-      email: userData.email || "",
-      phoneNumber: userData.phoneNumber || "",
+      email: userData?.email || "",
+      phoneNumber: userData?.phoneNumber || "",
     });
   };
 
@@ -303,9 +339,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
   // --- localStorage-based edit save ---
   const handleEditSave = (field: string) => {
     if (!editValues[field]?.trim()) {
-      alert(
-        `${field.charAt(0).toUpperCase() + field.slice(1)} cannot be empty`,
-      );
+      toast.error(`${field.charAt(0).toUpperCase() + field.slice(1)} cannot be empty`);
       return;
     }
 
@@ -314,9 +348,13 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
       const updates: Record<string, any> = {};
       switch (field) {
         case "name": {
-          const parts = editValues.name.trim().split(" ");
-          updates.firstName = parts[0] || "";
-          updates.lastName = parts.slice(1).join(" ") || "";
+          if (isOrganization) {
+            updates.organizationName = editValues.name.trim();
+          } else {
+            const parts = editValues.name.trim().split(" ");
+            updates.firstName = parts[0] || "";
+            updates.lastName = parts.slice(1).join(" ") || "";
+          }
           break;
         }
         case "email":
@@ -329,53 +367,145 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
           throw new Error("Invalid field");
       }
 
-      // Update userData in-place for the current render
       Object.assign(userData, updates);
-      // Persist to localStorage
       updateUserInLocalStorage(userData.id, updates);
 
       setEditingField(null);
-      alert(
-        `${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully!`,
-      );
+      toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully!`);
     } catch (error: any) {
       console.error(`Failed to update ${field}:`, error);
-      alert(error.message || `Failed to update ${field}`);
+      toast.error(error.message || `Failed to update ${field}`);
     } finally {
       setIsUpdating(false);
     }
   };
 
   // --- localStorage-based action handlers ---
-  const handleBlackList = () => {
-    updateUserInLocalStorage(userData.id, { blacklisted: true });
-    Object.assign(userData, { blacklisted: true });
-    alert("User blacklisted successfully");
+  const handleBlackList = (reason: string) => {
+    updateUserInLocalStorage(userData.id, {
+      blacklisted: true,
+      blacklistReason: reason,
+      blacklistDate: new Date().toISOString()
+    });
+    Object.assign(userData, { blacklisted: true, blacklistReason: reason });
+    setIsBlacklisted(true);
+    toast.success("User has been blacklisted.");
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleWhiteList = () => {
-    updateUserInLocalStorage(userData.id, { blacklisted: false });
-    Object.assign(userData, { blacklisted: false });
-    alert("User whitelisted successfully");
+    updateUserInLocalStorage(userData.id, { blacklisted: false, blacklistReason: "" });
+    Object.assign(userData, { blacklisted: false, blacklistReason: "" });
+    setIsBlacklisted(false);
+    toast.success("User has been removed from blacklist.");
+    window.dispatchEvent(new Event('storage'));
   };
 
-  const handleSuspend = () => {
-    updateUserInLocalStorage(userData.id, { suspended: true });
-    Object.assign(userData, { suspended: true });
-    alert("User suspended successfully");
+  const handleSuspend = (reason: string) => {
+    updateUserInLocalStorage(userData.id, {
+      suspended: true,
+      suspendReason: reason,
+      suspendDate: new Date().toISOString()
+    });
+    Object.assign(userData, { suspended: true, suspendReason: reason });
+    setIsSuspended(true);
+    toast.success("User has been suspended.");
+    window.dispatchEvent(new Event('storage'));
   };
 
-  const handleUnverifyUser = () => {
+  const handleUnsuspend = () => {
+    updateUserInLocalStorage(userData.id, { suspended: false, suspendReason: "" });
+    Object.assign(userData, { suspended: false, suspendReason: "" });
+    setIsSuspended(false);
+    toast.success("User suspension has been lifted.");
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleUnverifyUser = (reason: string) => {
     updateUserInLocalStorage(userData.id, {
       adminApproved: false,
       approved: false,
+      status: "PENDING",
+      unverifyReason: reason,
+      unverifyDate: new Date().toISOString()
     });
-    Object.assign(userData, { adminApproved: false, approved: false });
-    alert("User unverified successfully");
+    Object.assign(userData, { adminApproved: false, approved: false, status: "PENDING", unverifyReason: reason });
+    setIsVerified(false);
+    toast.success("User has been unverified.");
+    window.dispatchEvent(new Event('storage'));
   };
+
+  const handleDeleteUser = (reason: string) => {
+    try {
+      // Remove from all localStorage arrays
+      const storageKeys = ["users", "builders", "customers"];
+      storageKeys.forEach(key => {
+        const stored = JSON.parse(localStorage.getItem(key) || "[]");
+        const filtered = stored.filter((u: any) => u.id !== userData.id && u.id !== Number(userData.id) && u.id !== String(userData.id));
+        localStorage.setItem(key, JSON.stringify(filtered));
+      });
+
+      // Remove user-specific data
+      localStorage.removeItem(`uploads_demo_${userData.id}`);
+      localStorage.removeItem(`fundi_experience_${userData.id}`);
+      localStorage.removeItem(`professional_experience_${userData.id}`);
+      localStorage.removeItem(`contractorExperience_${userData.id}`);
+
+      setIsDeleted(true);
+      toast.success("User has been deleted successfully.");
+      window.dispatchEvent(new Event('storage'));
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      toast.error("Failed to delete user.");
+    }
+  };
+
+  // Handle action with reason submission
+  const handleActionSubmit = () => {
+    if (!actionReason.trim()) {
+      toast.error("Please enter a reason for this action.");
+      return;
+    }
+
+    switch (pendingAction) {
+      case "unverify":
+        handleUnverifyUser(actionReason);
+        break;
+      case "suspend":
+        handleSuspend(actionReason);
+        break;
+      case "blacklist":
+        handleBlackList(actionReason);
+        break;
+    }
+
+    setPendingAction(null);
+    setActionReason("");
+  };
+
+  const getActionLabel = (action: string) => {
+    switch (action) {
+      case "unverify": return "Unverify";
+      case "suspend": return "Suspend";
+      case "blacklist": return "Blacklist";
+      default: return action;
+    }
+  };
+
+  if (isDeleted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+        <Toaster position="top-center" richColors />
+        <Trash2 className="w-16 h-16 text-red-400 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">User Deleted</h2>
+        <p className="text-gray-500">This user account has been permanently removed.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
+      <Toaster position="top-center" richColors />
       {/* <ProfileNavBarVerification /> */}
       <div className="flex-1 overflow-y-auto bg-white">
         <div className="w-full px-4">
@@ -384,20 +514,54 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               <h1 className="text-2xl md:text-3xl font-bold mb-6">
                 Account Info
               </h1>
-              {showVerificationMessage && (
-                <div className="flex items-center space-x-1 mb-4">
-                  {[...Array(5)].map((_, index) => (
-                    <Star
-                      key={index}
-                      className="text-yellow-400 w-5 h-5"
-                      fill="currentColor"
-                    />
-                  ))}
-                  <span className="text-sm text-green-600 font-medium ml-2">
-                    Verified
-                  </span>
-                </div>
-              )}
+
+              {/* User Status Banner */}
+              {(() => {
+                const status = userData?.status || (isVerified ? "VERIFIED" : "PENDING");
+                const statusConfig: Record<string, { bg: string; border: string; text: string; label: string }> = {
+                  VERIFIED: { bg: "bg-green-50", border: "border-green-300", text: "text-green-800", label: "Verified" },
+                  PENDING: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-800", label: "Pending Verification" },
+                  RETURNED: { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-800", label: "Documents Returned" },
+                  REJECTED: { bg: "bg-red-50", border: "border-red-300", text: "text-red-800", label: "Rejected" },
+                  PARTIALLY_VERIFIED: { bg: "bg-indigo-50", border: "border-indigo-300", text: "text-indigo-800", label: "Partially Verified" },
+                  SUSPENDED: { bg: "bg-orange-50", border: "border-orange-300", text: "text-orange-800", label: "Suspended" },
+                  BLACKLISTED: { bg: "bg-red-50", border: "border-red-300", text: "text-red-800", label: "Blacklisted" },
+                };
+                const effectiveStatus = isSuspended ? "SUSPENDED" : isBlacklisted ? "BLACKLISTED" : status;
+                const cfg = statusConfig[effectiveStatus] || statusConfig.PENDING;
+                return (
+                  <div className={`flex items-center gap-3 mb-4 p-3 rounded-lg border ${cfg.bg} ${cfg.border}`}>
+                    {effectiveStatus === "VERIFIED" && (
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="text-yellow-400 w-4 h-4" fill="currentColor" />
+                        ))}
+                      </div>
+                    )}
+                    {effectiveStatus === "SUSPENDED" && <AlertTriangle className="w-5 h-5 text-orange-600" />}
+                    {effectiveStatus === "BLACKLISTED" && <Ban className="w-5 h-5 text-red-600" />}
+                    {effectiveStatus === "PENDING" && <Clock className="w-5 h-5 text-amber-600" />}
+                    {effectiveStatus === "RETURNED" && <ShieldOff className="w-5 h-5 text-blue-600" />}
+                    {effectiveStatus === "REJECTED" && <Ban className="w-5 h-5 text-red-600" />}
+                    {effectiveStatus === "PARTIALLY_VERIFIED" && <AlertTriangle className="w-5 h-5 text-indigo-600" />}
+                    <span className={`text-sm font-semibold ${cfg.text}`}>
+                      Status: {cfg.label}
+                    </span>
+                    {/* Unverify button inline - visible when verified */}
+                    {isVerified && adminRole && (
+                      <button
+                        type="button"
+                        onClick={() => setPendingAction("unverify")}
+                        className="ml-auto flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-white border border-red-300 text-red-700 hover:bg-red-50 transition"
+                      >
+                        <ShieldOff className="w-4 h-4" />
+                        Unverify
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="flex flex-col items-start mb-6">
                 <img
                   alt="avatar"
@@ -409,7 +573,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                   onClick={handleButtonClick}
                   className="mt-4 text-blue-900 hover:text-blue-700 text-sm font-medium"
                 >
-                  Change Photo
+                  Changed Photo
                 </button>
                 <input
                   type="file"
@@ -424,72 +588,182 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                   Basic Info
                 </h2>
 
-                {/* HARDWARE SPECIFIC SECTION */}
-                {userData?.userType === "HARDWARE" && (
+                {/* ORGANIZATION SPECIFIC SECTION (CONTRACTOR & HARDWARE) */}
+                {(userData?.userType === "HARDWARE" || userData?.userType === "CONTRACTOR") && (
                   <div className="space-y-4 p-4 bg-gray-50 rounded-lg mb-6">
                     <div className="space-y-2">
                       <label className="block text-sm font-medium">
-                        Hardware Name
+                        {userData?.userType === "HARDWARE" ? "Hardware Name" : "Company Name"}
                       </label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
-                        <input
-                          type="text"
-                          value={userData.organizationName || ""}
-                          className="w-full px-4 py-2 outline-none bg-transparent"
-                          readOnly
-                        />
+                        {editingField === "name" ? (
+                          <>
+                            <input
+                              type="text"
+                              value={editValues.name}
+                              onChange={(e) => handleEditChange("name", e.target.value)}
+                              className="w-full px-4 py-2 outline-none bg-transparent"
+                              disabled={isUpdating}
+                            />
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEditSave("name")}
+                                disabled={isUpdating}
+                                className="text-green-600 hover:text-green-700 disabled:opacity-50"
+                              >
+                                {isUpdating ? (
+                                  <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  <FiCheck size={15} />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleEditCancel}
+                                disabled={isUpdating}
+                                className="text-red-600 hover:text-red-700 disabled:opacity-50"
+                              >
+                                <FiX size={15} />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="text"
+                              value={userData?.organizationName || name || "N/A"}
+                              className="w-full px-4 py-2 outline-none bg-transparent"
+                              readOnly
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEditStart("name")}
+                              className="text-blue-900 cursor-pointer hover:opacity-75"
+                            >
+                              <FiEdit size={15} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
-
-                    <h3 className="text-lg font-semibold pt-4 border-t">
-                      Contact Person
-                    </h3>
 
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium">
-                        Full Name
-                      </label>
+                      <label className="block text-sm font-medium">Phone Number</label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
-                        <input
-                          type="text"
-                          value={`${userData.contactFirstName || ""} ${userData.contactLastName || ""}`}
-                          className="w-full px-4 py-2 outline-none bg-transparent"
-                          readOnly
-                        />
+                        {editingField === "phoneNumber" ? (
+                          <>
+                            <input
+                              type="tel"
+                              value={editValues.phoneNumber}
+                              onChange={(e) => handleEditChange("phoneNumber", e.target.value)}
+                              className="w-full px-4 py-2 outline-none bg-transparent"
+                              disabled={isUpdating}
+                            />
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEditSave("phoneNumber")}
+                                disabled={isUpdating}
+                                className="text-green-600 hover:text-green-700 disabled:opacity-50"
+                              >
+                                {isUpdating ? (
+                                  <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  <FiCheck size={15} />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleEditCancel}
+                                disabled={isUpdating}
+                                className="text-red-600 hover:text-red-700 disabled:opacity-50"
+                              >
+                                <FiX size={15} />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="tel"
+                              value={userData?.phoneNumber || "N/A"}
+                              className="w-full px-4 py-2 outline-none bg-transparent"
+                              readOnly
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEditStart("phoneNumber")}
+                              className="text-blue-900 cursor-pointer hover:opacity-75"
+                            >
+                              <FiEdit size={15} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
 
+                    {adminRole !== "AGENT" && (
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium">
-                        Contact Phone
-                      </label>
+                      <label className="block text-sm font-medium">Email</label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
-                        <input
-                          type="text"
-                          value={userData.contactPhone || ""}
-                          className="w-full px-4 py-2 outline-none bg-transparent"
-                          readOnly
-                        />
+                        {editingField === "email" ? (
+                          <>
+                            <input
+                              type="email"
+                              value={editValues.email}
+                              onChange={(e) => handleEditChange("email", e.target.value)}
+                              className="w-full px-4 py-2 outline-none bg-transparent"
+                              disabled={isUpdating}
+                            />
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEditSave("email")}
+                                disabled={isUpdating}
+                                className="text-green-600 hover:text-green-700 disabled:opacity-50"
+                              >
+                                {isUpdating ? (
+                                  <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  <FiCheck size={15} />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleEditCancel}
+                                disabled={isUpdating}
+                                className="text-red-600 hover:text-red-700 disabled:opacity-50"
+                              >
+                                <FiX size={15} />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="email"
+                              value={userData?.email || "N/A"}
+                              className="w-full px-4 py-2 outline-none bg-transparent"
+                              readOnly
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEditStart("email")}
+                              className="text-blue-900 cursor-pointer hover:opacity-75"
+                            >
+                              <FiEdit size={15} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium">
-                        Contact Email
-                      </label>
-                      <div className="flex items-center border-b focus-within:border-blue-900 transition">
-                        <input
-                          type="text"
-                          value={userData.contactEmail || ""}
-                          className="w-full px-4 py-2 outline-none bg-transparent"
-                          readOnly
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
-                {userData?.userType !== "HARDWARE" && (
+                {/* INDIVIDUAL USERS (FUNDI, PROFESSIONAL, CUSTOMER) */}
+                {userData?.userType !== "HARDWARE" && userData?.userType !== "CONTRACTOR" && (
                   <form className="space-y-4">
                     <div className="space-y-2">
                       <label className="block text-sm font-medium">Name</label>
@@ -605,6 +879,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                         )}
                       </div>
                     </div>
+                    {adminRole !== "AGENT" && (
                     <div className="space-y-2">
                       <label className="block text-sm font-medium">Email</label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
@@ -661,64 +936,146 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                         )}
                       </div>
                     </div>
+                    )}
                   </form>
                 )}
               </div>
             </div>
-            {showVerificationMessage && (
+            {/* Actions Section - Always available for admin */}
+            {adminRole && (
               <div className="mt-6 flex justify-between items-center flex-wrap gap-4">
-                {/* Actions button aligned to start */}
+                {/* Actions dropdown */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setShowActionDropdown(!showActionDropdown)}
-                    className="bg-blue-800 text-white px-6 py-2 rounded hover:bg-blue-700 transition"
+                    className="bg-blue-800 text-white px-6 py-2 rounded hover:bg-blue-700 transition flex items-center gap-2"
                   >
                     Actions
+                    <FiChevronDown
+                      className={`transition-transform ${showActionDropdown ? "rotate-180" : ""}`}
+                      size={16}
+                    />
                   </button>
                   {showActionDropdown && (
-                    <div className="absolute left-0 mt-2 w-44 bg-white border rounded shadow-lg z-50">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleUnverifyUser();
-                          setShowActionDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        Unverify
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleSuspend();
-                          setShowActionDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        Suspend
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleBlackList();
-                          setShowActionDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
-                      >
-                        Blacklist
-                      </button>
+                    <div className="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
+                      {/* Unverify - only if currently verified */}
+                      {isVerified && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingAction("unverify");
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
+                        >
+                          <ShieldOff className="w-4 h-4" />
+                          Unverify
+                        </button>
+                      )}
+                      {/* Suspend / Unsuspend */}
+                      {isSuspended ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleUnsuspend();
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-green-600"
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                          Unsuspend
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingAction("suspend");
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-orange-600"
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                          Suspend
+                        </button>
+                      )}
+                      {/* Blacklist / Remove from Blacklist */}
+                      {isBlacklisted ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleWhiteList();
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-green-600"
+                        >
+                          <Ban className="w-4 h-4" />
+                          Remove Blacklist
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingAction("blacklist");
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                        >
+                          <Ban className="w-4 h-4" />
+                          Blacklist
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
-                {/* Delete button aligned to end */}
+                {/* Delete button */}
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 transition"
+                  className="flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 transition"
                 >
+                  <Trash2 className="w-4 h-4" />
                   Delete
                 </button>
+              </div>
+            )}
+
+            {/* Action Reason Modal */}
+            {pendingAction && (
+              <div className="bg-blue-50 border border-blue-300 text-blue-800 px-4 py-4 rounded mt-4">
+                <p className="font-medium mb-2">
+                  Please provide a reason for {getActionLabel(pendingAction).toLowerCase()}ing this user:
+                </p>
+                <textarea
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                  placeholder={`Enter reason for ${getActionLabel(pendingAction).toLowerCase()}...`}
+                  className="w-full mt-2 p-3 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                />
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleActionSubmit}
+                    className={`text-white px-4 py-2 rounded transition ${
+                      pendingAction === "blacklist"
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    Confirm {getActionLabel(pendingAction)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingAction(null);
+                      setActionReason("");
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             )}
             {showDeleteConfirm && (
@@ -775,6 +1132,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
         </div>
       </div>
     </div>
+    
   );
 };
 

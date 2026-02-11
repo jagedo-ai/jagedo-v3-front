@@ -10,36 +10,388 @@ import {
   PencilIcon,
   PlusIcon,
 } from "@heroicons/react/24/outline";
-import { UploadCloud, FileText } from "lucide-react";
-
+import { UploadCloud, FileText, CheckCircle } from "lucide-react";
+import { FiCheck, FiX } from "react-icons/fi";
 import { SquarePen } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { getAdminRole } from "@/config/adminRoles";
 
-// --- Helper: update a user in localStorage "users" array ---
+
+ // Specialization options by user type
+  const FUNDI_SPECIALIZATIONS = {
+    Mason: [
+      "Block Work & Brick Laying",
+      "Plastering & Rendering",
+      "Stone Masonry",
+      "Concrete Work",
+      "Foundation Work",
+      "Structural Masonry",
+      "Decorative Masonry",
+      "Tile Setting",
+      "Waterproofing",
+      "Restoration & Repair",
+    ],
+    Electrician: [
+      "Residential Wiring",
+      "Commercial Installations",
+      "Industrial Electrical",
+      "Solar PV Installation",
+      "Backup Power Systems",
+      "Lighting Systems",
+      "Security & Alarm Systems",
+      "Data & Network Cabling",
+      "Motor & Pump Installations",
+      "Electrical Maintenance & Repair",
+    ],
+    Plumber: [
+      "Pipe Installation & Repair",
+      "Water Heater Installation",
+      "Drainage Systems",
+      "Septic Tank Installation",
+      "Bathroom Fitting",
+      "Kitchen Plumbing",
+      "Water Treatment Systems",
+      "Irrigation Systems",
+      "Gas Pipe Installation",
+      "Sewer Line Services",
+    ],
+    Carpenter: [
+      "Furniture Making",
+      "Roofing & Trusses",
+      "Door & Window Installation",
+      "Kitchen Cabinets",
+      "Wardrobes & Closets",
+      "Flooring Installation",
+      "Ceiling Work",
+      "Formwork & Shuttering",
+      "Finish Carpentry",
+      "Renovation & Restoration",
+    ],
+    Painter: [
+      "Interior Painting",
+      "Exterior Painting",
+      "Decorative Finishes",
+      "Texture Coating",
+      "Spray Painting",
+      "Wallpaper Installation",
+      "Epoxy Coating",
+      "Waterproof Coating",
+      "Wood Finishing & Staining",
+      "Industrial Painting",
+    ],
+    Welder: [
+      "Structural Welding",
+      "Pipe Welding",
+      "MIG Welding",
+      "TIG Welding",
+      "Arc Welding",
+      "Gate & Grille Fabrication",
+      "Tank Fabrication",
+      "Aluminum Welding",
+      "Stainless Steel Welding",
+      "Repair & Maintenance Welding",
+    ],
+    Tiler: [
+      "Floor Tiling",
+      "Wall Tiling",
+      "Bathroom Tiling",
+      "Kitchen Backsplash",
+      "Swimming Pool Tiling",
+      "Outdoor & Patio Tiling",
+      "Mosaic Installation",
+      "Natural Stone Installation",
+      "Tile Repair & Restoration",
+      "Waterproofing & Grouting",
+    ],
+    Roofer: [
+      "Metal Roofing",
+      "Tile Roofing",
+      "Flat Roofing",
+      "Shingle Installation",
+      "Roof Repair & Maintenance",
+      "Gutter Installation",
+      "Skylight Installation",
+      "Waterproofing",
+      "Insulation",
+      "Green Roof Installation",
+    ],
+  };
+
+  const PROFESSIONAL_SPECIALIZATIONS = {
+    "Project Manager": [
+      "Construction Project Management",
+      "Infrastructure Projects",
+      "Residential Development",
+      "Commercial Development",
+      "Industrial Projects",
+      "Government Projects",
+      "Real Estate Development",
+      "Renovation & Remodeling",
+      "Green Building Projects",
+      "Multi-site Management",
+    ],
+    Architect: [
+      "Residential Architecture",
+      "Commercial Architecture",
+      "Industrial Architecture",
+      "Landscape Architecture",
+      "Interior Architecture",
+      "Urban Planning",
+      "Sustainable Design",
+      "Historic Preservation",
+      "Healthcare Facilities",
+      "Educational Facilities",
+    ],
+    "Water Engineer": [
+      "Water Supply Systems",
+      "Wastewater Treatment",
+      "Stormwater Management",
+      "Irrigation Engineering",
+      "Hydraulic Structures",
+      "Pipeline Engineering",
+      "Water Resources Management",
+      "Flood Control",
+      "Desalination Systems",
+      "Environmental Water Solutions",
+    ],
+    "Roads Engineer": [
+      "Highway Design",
+      "Urban Road Design",
+      "Pavement Engineering",
+      "Traffic Engineering",
+      "Bridge Engineering",
+      "Road Rehabilitation",
+      "Drainage Design",
+      "Survey & Mapping",
+      "Construction Supervision",
+      "Road Safety Engineering",
+    ],
+    "Structural Engineer": [
+      "Building Structures",
+      "Bridge Structures",
+      "Industrial Structures",
+      "Concrete Structures",
+      "Steel Structures",
+      "Foundation Engineering",
+      "Seismic Design",
+      "Structural Assessment",
+      "Retrofit & Rehabilitation",
+      "Temporary Structures",
+    ],
+    "Mechanical Engineer": [
+      "HVAC Systems",
+      "Plumbing Systems",
+      "Fire Protection Systems",
+      "Elevator & Escalator Systems",
+      "Industrial Machinery",
+      "Energy Systems",
+      "Building Automation",
+      "Refrigeration Systems",
+      "Ventilation Design",
+      "Mechanical Maintenance",
+    ],
+    "Electrical Engineer": [
+      "Power Distribution",
+      "Lighting Design",
+      "Building Electrical Systems",
+      "Industrial Electrical",
+      "Renewable Energy Systems",
+      "Control Systems",
+      "Telecommunications",
+      "Security Systems",
+      "Fire Alarm Systems",
+      "Energy Management",
+    ],
+    Surveyor: [
+      "Land Surveying",
+      "Topographic Surveys",
+      "Construction Surveying",
+      "Cadastral Surveys",
+      "Engineering Surveys",
+      "GPS & GIS Mapping",
+      "Hydrographic Surveys",
+      "Quantity Surveying",
+      "Boundary Surveys",
+      "As-built Surveys",
+    ],
+    "Quantity Surveyor": [
+      "Cost Estimation",
+      "Bill of Quantities",
+      "Contract Administration",
+      "Value Engineering",
+      "Project Cost Control",
+      "Procurement Management",
+      "Final Account Settlement",
+      "Risk Assessment",
+      "Feasibility Studies",
+      "Life Cycle Costing",
+    ],
+  };
+
+  const CONTRACTOR_SPECIALIZATIONS = {
+    "Building Works": [
+      "Residential Construction",
+      "Commercial Construction",
+      "Industrial Construction",
+      "Institutional Buildings",
+      "High-rise Buildings",
+      "Housing Estates",
+      "Renovation & Remodeling",
+      "Prefabricated Construction",
+      "Green Building Construction",
+      "Mixed-use Developments",
+    ],
+    "Water Works": [
+      "Water Supply Networks",
+      "Sewerage Systems",
+      "Water Treatment Plants",
+      "Irrigation Systems",
+      "Borehole Drilling",
+      "Dam Construction",
+      "Pipeline Installation",
+      "Pump Stations",
+      "Water Storage Tanks",
+      "Flood Control Systems",
+    ],
+    "Electrical Works": [
+      "Power Line Installation",
+      "Substation Construction",
+      "Building Electrical Works",
+      "Street Lighting",
+      "Solar Power Installation",
+      "Generator Installation",
+      "Industrial Electrical",
+      "Fire Alarm Systems",
+      "Security Systems Installation",
+      "Smart Building Systems",
+    ],
+    "Mechanical Works": [
+      "HVAC Installation",
+      "Plumbing & Sanitary Works",
+      "Fire Fighting Systems",
+      "Elevator & Escalator Installation",
+      "Industrial Equipment Installation",
+      "Refrigeration Systems",
+      "Compressed Air Systems",
+      "Steam & Boiler Systems",
+      "Piping Works",
+      "Mechanical Maintenance",
+    ],
+    "Roads & Infrastructure": [
+      "Road Construction",
+      "Bridge Construction",
+      "Culvert Construction",
+      "Drainage Systems",
+      "Pavement Works",
+      "Highway Construction",
+      "Airport Runways",
+      "Railway Construction",
+      "Port & Marine Works",
+      "Urban Infrastructure",
+    ],
+    "Landscaping & External Works": [
+      "Landscape Construction",
+      "Paving & Hardscaping",
+      "Fencing & Gates",
+      "Swimming Pool Construction",
+      "Sports Facilities",
+      "Playground Construction",
+      "Retaining Walls",
+      "Outdoor Lighting",
+      "Irrigation Installation",
+      "Environmental Landscaping",
+    ],
+  };
+
+
+// --- Helper: deep merge objects ---
+const deepMerge = (target: any, source: any): any => {
+  const result = { ...target };
+  for (const key in source) {
+    if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+      result[key] = deepMerge(result[key] || {}, source[key]);
+    } else {
+      result[key] = source[key];
+    }
+  }
+  return result;
+};
+
+// --- Helper: update a user in all localStorage arrays ---
+
+const resolveSpecialization = (user: any) => {
+  if (!user) return "";
+
+  // 1. New unified field
+  if (user.specialization) return user.specialization;
+
+  // 2. Backward compatibility
+  if (user.fundispecialization) return user.fundispecialization;
+  if (user.professionalSpecialization) return user.professionalSpecialization;
+  if (user.contractorSpecialization) return user.contractorSpecialization;
+
+  // 3. Nested fallback (if any older data)
+  if (user?.specialization?.fundiLevel) return user.specialization.fundiLevel;
+  if (user?.specialization?.contractorLevel)
+    return user.specialization.contractorLevel;
+  if (user?.specialization?.professionalLevel)
+    return user.specialization.professionalLevel;
+
+  return "";
+};
+
 const updateUserInLocalStorage = (
   userId: string,
   updates: Record<string, any>,
 ) => {
   try {
+    // Update "users" array
     const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-    const idx = storedUsers.findIndex((u: any) => u.id === userId);
-    if (idx !== -1) {
-      storedUsers[idx] = { ...storedUsers[idx], ...updates };
+    const userIdx = storedUsers.findIndex((u: any) => u.id === userId);
+    if (userIdx !== -1) {
+      storedUsers[userIdx] = deepMerge(storedUsers[userIdx], updates);
       localStorage.setItem("users", JSON.stringify(storedUsers));
     }
+
+    // Update "builders" array
+    const storedBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
+    const builderIdx = storedBuilders.findIndex((u: any) => u.id === userId);
+    if (builderIdx !== -1) {
+      storedBuilders[builderIdx] = deepMerge(storedBuilders[builderIdx], updates);
+      localStorage.setItem("builders", JSON.stringify(storedBuilders));
+    }
+
+    // Update "customers" array
+    const storedCustomers = JSON.parse(localStorage.getItem("customers") || "[]");
+    const customerIdx = storedCustomers.findIndex((u: any) => u.id === userId);
+    if (customerIdx !== -1) {
+      storedCustomers[customerIdx] = deepMerge(storedCustomers[customerIdx], updates);
+      localStorage.setItem("customers", JSON.stringify(storedCustomers));
+    }
+
+    // Update "user" single object
     const singleUser = JSON.parse(localStorage.getItem("user") || "null");
     if (singleUser && singleUser.id === userId) {
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ ...singleUser, ...updates }),
-      );
+      const updatedUser = deepMerge(singleUser, updates);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
+
+    // Update "profile" single object
+    const profileUser = JSON.parse(localStorage.getItem("profile") || "null");
+    if (profileUser && profileUser.id === userId) {
+      const updatedProfile = deepMerge(profileUser, updates);
+      localStorage.setItem("profile", JSON.stringify(updatedProfile));
     }
   } catch (err) {
     console.error("Failed to update user in localStorage:", err);
+    throw err;
   }
 };
 
 const Experience = ({ userData }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   console.log("User Data: ", userData);
   // const axiosInstance = useAxiosWithAuth(import.meta.env.VITE_SERVER_URL)
   const [isEditingFields, setIsEditingFields] = useState(false);
@@ -52,11 +404,16 @@ const Experience = ({ userData }) => {
 
   // Get user type from userData
   const userType = userData?.userType || "FUNDI";
+  const status = userData?.status;
+
+  // Statuses that should prefill/show existing data
+  const PREFILL_STATUSES = ["COMPLETED", "VERIFIED", "PENDING", "RETURNED", "INCOMPLETE"];
 
   // Initialize attachments based on user type
   const getInitialAttachments = () => {
     let projectData = [];
 
+    // Always try to load existing project data from userProfile
     switch (userType) {
       case "FUNDI":
         projectData = userData?.userProfile?.previousJobPhotoUrls || [];
@@ -74,20 +431,22 @@ const Experience = ({ userData }) => {
         projectData = userData?.userProfile?.previousJobPhotoUrls || [];
     }
 
-    if (!projectData || projectData.length === 0) {
-      return [];
+    // If there's saved project data, always load it (regardless of status)
+    if (projectData && projectData.length > 0) {
+      return projectData.map((project, index) => ({
+        id: index + 1,
+        projectName: project.projectName || `${userType} Project ${index + 1}`,
+        files: [
+          {
+            name: `${project.projectName || `${userType} Project ${index + 1}`}.jpg`,
+            url: project.fileUrl || project?.projectFile,
+          },
+        ],
+      }));
     }
 
-    return projectData.map((project, index) => ({
-      id: index + 1,
-      projectName: project.projectName || `${userType} Project ${index + 1}`,
-      files: [
-        {
-          name: `${project.projectName || `${userType} Project ${index + 1}`}.jpg`,
-          url: project.fileUrl || project?.projectFile,
-        },
-      ],
-    }));
+    // No saved projects - return empty array
+    return [];
   };
 
   const profileUploaded = (userData) => {
@@ -98,7 +457,7 @@ const Experience = ({ userData }) => {
           userData?.userProfile?.previousJobPhotoUrls.length > 0
         );
       case "PROFESSIONAL":
-        return userData?.userProfile?.professionalLevel;
+        return userData?.userProfile?.specialization.professionalLevel;
       case "CONTRACTOR":
         return (
           userData?.userProfile?.contractorProjects &&
@@ -150,14 +509,37 @@ const CATEGORY_OPTIONS = [
     [key: string]: boolean;
   }>({});
   const [newProjects, setNewProjects] = useState<{ [key: string]: any }>({});
-const [categories, setCategories] = useState<ContractorCategory[]>([
-  {
-    category: "",
-    specialization: "",
-    class: "",
-    years: "",
-  },
-]);
+
+  // Re-sync attachments when userData changes (e.g., after adding a project)
+  useEffect(() => {
+    const loadedAttachments = getInitialAttachments();
+    if (loadedAttachments.length > 0) {
+      setAttachments(loadedAttachments);
+    }
+  }, [userData?.userProfile]);
+// Initialize categories from userData or defaults
+const getInitialCategories = (): ContractorCategory[] => {
+  if (userData?.userProfile?.contractorCategories && Array.isArray(userData.userProfile.contractorCategories)) {
+    return userData.userProfile.contractorCategories.map((cat: any) => ({
+      category: cat.category || "",
+      specialization: cat.specialization || "",
+      class: cat.class || cat.categoryClass || "",
+      years: cat.years || cat.yearsOfExperience || "",
+    }));
+  }
+  // Fallback: try contractorExperiences if it's an array
+  if (userData?.userProfile?.contractorExperiences && Array.isArray(userData.userProfile.contractorExperiences)) {
+    return userData.userProfile.contractorExperiences.map((exp: any) => ({
+      category: exp.category || "",
+      specialization: exp.specialization || "",
+      class: exp.categoryClass || exp.class || "",
+      years: exp.yearsOfExperience || exp.years || "",
+    }));
+  }
+  return [{ category: "", specialization: "", class: "", years: "" }];
+};
+
+const [categories, setCategories] = useState<ContractorCategory[]>(getInitialCategories());
 const addCategory = () => {
   setCategories([
     ...categories,
@@ -176,52 +558,77 @@ const removeCategory = (index: number) => {
 
   // Initialize info from userData.userProfile based on user type
   const getInitialInfo = () => {
+    // For SIGNED_UP or INCOMPLETE, return default empty values
+    if (!PREFILL_STATUSES.includes(status)) {
+      return getDefaultInfo();
+    }
+
     if (!userData?.userProfile) {
       return getDefaultInfo();
     }
 
     switch (userType) {
       case "FUNDI":
+        const fundiSkill = userData.userProfile.skill || userData.skills || "";
+        const fundiSpecOptions = FUNDI_SPECIALIZATIONS[fundiSkill as keyof typeof FUNDI_SPECIALIZATIONS] || [];
+        const defaultFundiSpec = fundiSpecOptions.length > 0 ? fundiSpecOptions[0] : "";
         return {
-          skill:
-            userData.userProfile.skill || userData.skills || "Not Provided",
-          grade: userData.userProfile.grade || "Not Provided",
-          experience: userData.userProfile.experience || "Not Provided",
+          skill: fundiSkill,
+          specialization: 
+            userData.userProfile.specialization ||
+            userData.userProfile.fundispecialization ||
+            userData.specialization ||
+            defaultFundiSpec,
+          grade: userData.userProfile.grade || "",
+          experience: userData.userProfile.experience || "",
         };
 
       case "PROFESSIONAL":
+        const profession = userData.userProfile.profession || userData.profession || "";
+        const profSpecOptions = PROFESSIONAL_SPECIALIZATIONS[profession as keyof typeof PROFESSIONAL_SPECIALIZATIONS] || [];
+        const defaultProfSpec = profSpecOptions.length > 0 ? profSpecOptions[0] : "";
         return {
-          profession:
-            userData.userProfile.profession ||
-            userData.profession ||
-            "Not Provided",
+          profession: profession,
+          specialization:
+            userData.userProfile.specialization ||
+            userData.userProfile.professionalSpecialization ||
+            userData.specialization ||
+            defaultProfSpec,
           professionalLevel:
-            userData.userProfile.professionalLevel || "Not Provided",
+            userData.userProfile.professionalLevel || "",
           yearsOfExperience:
-            userData.userProfile.yearsOfExperience || "Not Provided",
+            userData.userProfile.yearsOfExperience || "",
         };
 
       case "CONTRACTOR":
+        const category = userData.userProfile.contractorType || userData.contractorTypes || "";
+        const contSpecOptions = CONTRACTOR_SPECIALIZATIONS[category as keyof typeof CONTRACTOR_SPECIALIZATIONS] || [];
+        const defaultContSpec = contSpecOptions.length > 0 ? contSpecOptions[0] : "";
         return {
-          contractorType:
-            userData.userProfile.contractorType ||
-            userData.contractorTypes ||
-            "Not Provided",
-          licenseLevel: userData.userProfile.licenseLevel || "Not Provided",
-          experience:
-            userData.userProfile.contractorExperiences ||
-            userData?.contractorExperiences ||
-            "Not Provided",
+          category: category,
+          specialization:
+            userData.userProfile.specialization ||
+            userData.userProfile.contractorSpecialization ||
+            userData.specialization ||
+            defaultContSpec,
+          class: userData.userProfile.licenseLevel || "",
+         yearsOfExperience:
+  userData.userProfile.contractorExperiences?.[0]?.yearsOfExperience ||
+  userData?.contractorExperiences?.[0]?.yearsOfExperience ||
+  "",
+
         };
 
       case "HARDWARE":
+        const hardwareType = userData.userProfile.hardwareType || userData.hardwareTypes || "";
         return {
-          hardwareType:
-            userData.userProfile.hardwareType ||
-            userData.hardwareTypes ||
-            "Not Provided",
-          businessType: userData.userProfile.businessType || "Not Provided",
-          experience: userData.userProfile.experience || "Not Provided",
+          hardwareType: hardwareType,
+          specialization:
+            userData.userProfile.specialization ||
+            userData.specialization ||
+            "Cement & Concrete Products",
+          businessType: userData.userProfile.businessType || "",
+          experience: userData.userProfile.experience || "",
         };
 
       default:
@@ -231,15 +638,20 @@ const removeCategory = (index: number) => {
 
   const getDefaultInfo = () => {
     return {
-      skill: "Not Provided",
-      grade: "Not Provided",
-      experience: "Not Provided",
+      skill: "",
+      specialization: "",
+      grade: "",
+      experience: "",
     };
   };
 
   const [info, setInfo] = useState(getInitialInfo());
 
+ 
   // Dynamic field configurations based on user type
+  // Use editingFields when in edit mode so dependent dropdowns update correctly
+  const activeInfo = isEditingFields ? { ...info, ...editingFields } : info;
+
   const getFieldsConfig = () => {
     switch (userType) {
       case "FUNDI":
@@ -253,7 +665,22 @@ const removeCategory = (index: number) => {
               "Plumber",
               "Carpenter",
               "Painter",
+              "Welder",
+              "Tiler",
+              "Roofer",
             ],
+          },
+          {
+            name: "specialization",
+            label: "Specialization",
+            options: FUNDI_SPECIALIZATIONS[activeInfo.skill as keyof typeof FUNDI_SPECIALIZATIONS] || [
+              "Block Work & Brick Laying",
+              "Plastering & Rendering",
+              "Stone Masonry",
+              "Concrete Work",
+              "Foundation Work",
+            ],
+            dependsOn: "skill",
           },
           {
             name: "grade",
@@ -268,7 +695,7 @@ const removeCategory = (index: number) => {
           {
             name: "experience",
             label: "Experience",
-            options: ["5+ years", "3-5 years", "1-3 years"],
+            options: ["10+ years", "5-10 years", "3-5 years", "1-3 years", "Less than 1 year"],
           },
         ];
 
@@ -284,28 +711,32 @@ const removeCategory = (index: number) => {
               "Roads Engineer",
               "Structural Engineer",
               "Mechanical Engineer",
+              "Electrical Engineer",
+              "Surveyor",
+              "Quantity Surveyor",
             ],
-            
           },
-            {
-            name: "Specialization",
+          {
+            name: "specialization",
             label: "Specialization",
-            options: [
-              "Architect",
-              "Residential",
-              "Commercial",
-              "Industrial",
+            options: PROFESSIONAL_SPECIALIZATIONS[activeInfo.profession as keyof typeof PROFESSIONAL_SPECIALIZATIONS] || [
+              "Residential Architecture",
+              "Commercial Architecture",
+              "Industrial Architecture",
+              "Landscape Architecture",
+              "Interior Architecture",
             ],
-            },
+            dependsOn: "profession",
+          },
           {
             name: "professionalLevel",
             label: "Professional Level",
-            options: ["Graduate", "Student", "Senior", "Professional"],
+            options: ["Senior", "Professional", "Graduate", "Student"],
           },
           {
             name: "yearsOfExperience",
             label: "Years of Experience",
-            options: ["5+ years", "3-5 years", "1-3 years"],
+            options: ["15+ years", "10-15 years", "5-10 years", "3-5 years", "1-3 years", "Less than 1 year"],
           },
         ];
 
@@ -313,33 +744,38 @@ const removeCategory = (index: number) => {
         return [
           {
             name: "category",
-            label: "category",
+            label: "Category",
             options: [
               "Building Works",
-              "Water Engineer",
-              "Roads Engineer",
-              "Mechanical Engineer",
+              "Water Works",
+              "Electrical Works",
+              "Mechanical Works",
+              "Roads & Infrastructure",
+              "Landscaping & External Works",
             ],
-            
           },
-            {
-            name: "Specialization",
+          {
+            name: "specialization",
             label: "Specialization",
-            options: [
-              "Sanitation",
-              "drainage",
-              "hydrological",
+            options: CONTRACTOR_SPECIALIZATIONS[activeInfo.category as keyof typeof CONTRACTOR_SPECIALIZATIONS] ||
+              CONTRACTOR_SPECIALIZATIONS[activeInfo.contractorType as keyof typeof CONTRACTOR_SPECIALIZATIONS] || [
+              "Residential Construction",
+              "Commercial Construction",
+              "Industrial Construction",
+              "Institutional Buildings",
+              "High-rise Buildings",
             ],
-            },
+            dependsOn: "category",
+          },
           {
             name: "class",
-            label: "class",
-            options: ["NCA1", "NCA2", "NCA3", "NCA4"],
+            label: "NCA Class",
+            options: ["NCA1", "NCA2", "NCA3", "NCA4", "NCA5", "NCA6", "NCA7", "NCA8"],
           },
           {
             name: "yearsOfExperience",
             label: "Years of Experience",
-            options: ["10+ years", "5+ years", "3-5 years", "1-3 years"],
+            options: ["10+ years", "7-10 years", "5-7 years", "3-5 years", "1-3 years", "Less than 1 year"],
           },
         ];
 
@@ -352,17 +788,38 @@ const removeCategory = (index: number) => {
               "Building Materials",
               "Tools & Equipment",
               "Electrical Supplies",
+              "Plumbing Supplies",
+              "Paint & Finishes",
+              "Roofing Materials",
+              "Timber & Wood Products",
+              "Steel & Metal Products",
+            ],
+          },
+          {
+            name: "specialization",
+            label: "Specialization",
+            options: [
+              "Cement & Concrete Products",
+              "Bricks & Blocks",
+              "Sand & Aggregates",
+              "Tiles & Flooring",
+              "Doors & Windows",
+              "Electrical Fittings",
+              "Plumbing Fittings",
+              "Paint & Coatings",
+              "Hand Tools",
+              "Power Tools",
             ],
           },
           {
             name: "businessType",
             label: "Business Type",
-            options: ["Retail Store", "Wholesale Supplier"],
+            options: ["Retail Store", "Wholesale Supplier", "Manufacturer", "Distributor"],
           },
           {
             name: "experience",
             label: "Business Experience",
-            options: ["10+ years", "5-10 years", "3-5 years", "1-3 years"],
+            options: ["10+ years", "5-10 years", "3-5 years", "1-3 years", "Less than 1 year"],
           },
         ];
 
@@ -377,6 +834,20 @@ const removeCategory = (index: number) => {
               "Plumber",
               "Carpenter",
               "Painter",
+              "Welder",
+              "Tiler",
+              "Roofer",
+            ],
+          },
+          {
+            name: "specialization",
+            label: "Specialization",
+            options: [
+              "Block Work & Brick Laying",
+              "Plastering & Rendering",
+              "Stone Masonry",
+              "Concrete Work",
+              "Foundation Work",
             ],
           },
           {
@@ -392,7 +863,7 @@ const removeCategory = (index: number) => {
           {
             name: "experience",
             label: "Experience",
-            options: ["5+ years", "3-5 years", "1-3 years"],
+            options: ["10+ years", "5-10 years", "3-5 years", "1-3 years", "Less than 1 year"],
           },
         ];
     }
@@ -603,92 +1074,161 @@ const removeCategory = (index: number) => {
     setFileActionLoading((prev) => ({ ...prev, [loadingKey]: false }));
   };
 
-  // Same evaluation questions for all user types
+  // Default evaluation questions template
+  const DEFAULT_EVALUATION_QUESTIONS = [
+    {
+      id: 1,
+      text: "Have you done any major works in the construction industry?",
+      type: "select",
+      options: ["Yes", "No"],
+      answer: "",
+      score: 0,
+      isEditing: false,
+    },
+    {
+      id: 2,
+      text: "State the materials that you have been using mostly for your jobs",
+      type: "text",
+      answer: "",
+      score: 0,
+      isEditing: false,
+    },
+    {
+      id: 3,
+      text: "Name essential equipment that you have been using for your job",
+      type: "text",
+      answer: "",
+      score: 0,
+      isEditing: false,
+    },
+    {
+      id: 4,
+      text: "How do you always formulate your quotations?",
+      type: "text",
+      answer: "",
+      score: 0,
+      isEditing: false,
+    },
+  ];
+
+  // Get skill-specific questions from localStorage or use defaults
   const getEvaluationQuestions = () => {
-    return [
+    const skill = userData?.userProfile?.skill || userData?.skills || info?.skill || "";
+
+    if (userType === "FUNDI" && skill) {
+      // Try to load skill-specific questions from localStorage
+      const storageKey = `evaluation_questions_${skill.toLowerCase()}`;
+      const storedQuestions = localStorage.getItem(storageKey);
+
+      if (storedQuestions) {
+        try {
+          const parsed = JSON.parse(storedQuestions);
+          // Reset answers and scores for new evaluation
+          return parsed.map((q: any) => ({
+            ...q,
+            answer: "",
+            score: 0,
+            isEditing: false,
+          }));
+        } catch (e) {
+          console.error("Failed to parse stored questions:", e);
+        }
+      }
+    }
+
+    return DEFAULT_EVALUATION_QUESTIONS;
+  };
+
+  // Save questions template for a skill type
+  const saveQuestionsTemplate = (skill: string, questionsToSave: any[]) => {
+    const storageKey = `evaluation_questions_${skill.toLowerCase()}`;
+    // Save only the question structure, not answers
+    const template = questionsToSave.map(q => ({
+      id: q.id,
+      text: q.text,
+      type: q.type,
+      options: q.options,
+    }));
+    localStorage.setItem(storageKey, JSON.stringify(template));
+    toast.success(`Evaluation questions saved for ${skill}`);
+  };
+
+  // Add a new question to the current skill
+  const addNewQuestion = () => {
+    const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
+    setQuestions(prev => [
+      ...prev,
       {
-        id: 1,
-        text: "Have you done any major works in the construction industry?",
-        type: "select",
-        options: ["Yes", "No"],
-        answer: "",
-        score: 0,
-        isEditing: false,
-      },
-      {
-        id: 2,
-        text: "State the materials that you have been using mostly for your jobs",
+        id: newId,
+        text: "New evaluation question",
         type: "text",
         answer: "",
         score: 0,
-        isEditing: false,
-      },
-      {
-        id: 3,
-        text: "Name essential equipment that you have been using for your job",
-        type: "text",
-        answer: "",
-        score: 0,
-        isEditing: false,
-      },
-      {
-        id: 4,
-        text: "How do you always formulate your quotations?",
-        type: "text",
-        answer: "",
-        score: 0,
-        isEditing: false,
-      },
-    ];
+        isEditing: true, // Start in edit mode so user can type the question
+      }
+    ]);
+  };
+
+  // Delete a question
+  const deleteQuestion = (questionId: number) => {
+    setQuestions(prev => prev.filter(q => q.id !== questionId));
   };
 
   const initialQuestions = getEvaluationQuestions();
 
   // Pre-populate questions with existing evaluation data (same structure for all user types)
   const getInitialQuestions = () => {
-    // Use fundiEvaluation for all user types to maintain API compatibility
-    const evaluation = userData?.userProfile?.fundiEvaluation;
+  const evaluation = userData?.userProfile?.fundiEvaluation;
 
-    if (!evaluation) {
-      return initialQuestions;
-    }
+  // If status should NOT prefill → return empty form
+  if (!PREFILL_STATUSES.includes(status)) {
+    return initialQuestions;
+  }
 
-    return [
-      {
-        id: 1,
-        text: "Have you done any major works in the construction industry?",
-        type: "select",
-        options: ["Yes", "No"],
-        answer: evaluation.hasMajorWorks || "",
-        score: evaluation.majorWorksScore || 0,
-        isEditing: false,
-      },
-      {
-        id: 2,
-        text: "State the materials that you have been using mostly for your jobs",
-        type: "text",
-        answer: evaluation.materialsUsed || "",
-        score: evaluation.materialsUsedScore || 0,
-        isEditing: false,
-      },
-      {
-        id: 3,
-        text: "Name essential equipment that you have been using for your job",
-        type: "text",
-        answer: evaluation.essentialEquipment || "",
-        score: evaluation.essentialEquipmentScore || 0,
-        isEditing: false,
-      },
-      {
-        id: 4,
-        text: "How do you always formulate your quotations?",
-        type: "text",
-        answer: evaluation.quotationFormulation || "",
-        score: evaluation.quotationFormulaScore || 0,
-        isEditing: false,
-      },
-    ];
-  };
+  // If no evaluation exists → still return empty
+  if (!evaluation) {
+    return initialQuestions;
+  }
+
+  // Otherwise → prefill from evaluation
+  return [
+    {
+      id: 1,
+      text: "Have you done any major works in the construction industry?",
+      type: "select",
+      options: ["Yes", "No"],
+      answer: evaluation.hasMajorWorks || "",
+      score: evaluation.majorWorksScore || 0,
+      isEditing: false,
+    },
+    {
+      id: 2,
+      text: "If yes, briefly describe them",
+      type: "text",
+      answer: evaluation.majorWorksDescription || "",
+      score: evaluation.majorWorksDescScore || 0,
+      isEditing: false,
+    },
+    {
+      id: 3,
+      text: "Do you always complete your projects on time?",
+      type: "select",
+      options: ["Yes", "No"],
+      answer: evaluation.completesOnTime || "",
+      score: evaluation.onTimeScore || 0,
+      isEditing: false,
+    },
+    {
+      id: 4,
+      text: "How do you always formulate your quotations?",
+      type: "text",
+      answer: evaluation.quotationFormulation || "",
+      score: evaluation.quotationFormulaScore || 0,
+      isEditing: false,
+    },
+  ];
+};
+
 
   const [questions, setQuestions] = useState(getInitialQuestions());
 
@@ -742,8 +1282,10 @@ const removeCategory = (index: number) => {
 
   // Load initial values from localStorage and userData
   useEffect(() => {
-    // Check localStorage for verification message
-    const stored = localStorage.getItem("showVerificationMessage");
+    const userId = userData?.id;
+    // Check localStorage for verification message (user-specific)
+    const storageKey = userId ? `showVerificationMessage_${userId}` : "showVerificationMessage";
+    const stored = localStorage.getItem(storageKey);
     if (stored === "true") {
       setShowVerificationMessage(true);
     }
@@ -777,14 +1319,18 @@ const removeCategory = (index: number) => {
     }
     updateUserInLocalStorage(userId, { adminApproved: true, approved: true });
     Object.assign(userData, { adminApproved: true, approved: true });
-    localStorage.setItem("showVerificationMessage", "true");
+    // Use user-specific storage key
+    const storageKey = `showVerificationMessage_${userId}`;
+    localStorage.setItem(storageKey, "true");
     setShowVerificationMessage(true);
     setIsVerifying(false);
   };
 
   // When close is clicked
   const handleClose = () => {
-    localStorage.removeItem("showVerificationMessage");
+    const userId = userData?.id;
+    const storageKey = userId ? `showVerificationMessage_${userId}` : "showVerificationMessage";
+    localStorage.removeItem(storageKey);
     setShowVerificationMessage(false);
   };
 
@@ -847,21 +1393,24 @@ const removeCategory = (index: number) => {
   const handleEditSkill = (updatedFields) => {
     setIsSavingInfo(true);
     try {
+      if (!userData?.id) {
+        throw new Error("User ID not found");
+      }
       const profile = userData?.userProfile || {};
-      const updatedProfile = { ...profile, ...updatedFields };
+      const updatedProfile = deepMerge(profile, updatedFields);
       userData.userProfile = updatedProfile;
       updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
       toast.success("Information updated successfully");
-      setInfo((prevInfo) => ({
-        ...prevInfo,
-        ...updatedFields,
-      }));
+      setInfo((prevInfo) => deepMerge(prevInfo, updatedFields));
       setIsEditingFields(false);
     } catch (error) {
       toast.error("Failed to update information");
-      console.error(error);
+      console.error("Edit skill error:", error);
     } finally {
       setIsSavingInfo(false);
+      
+      // ✅ Trigger sidebar to update status (dispatch event so parent component recalculates)
+      window.dispatchEvent(new Event('storage'));
     }
   };
 
@@ -870,117 +1419,121 @@ const removeCategory = (index: number) => {
       <Toaster position="top-center" richColors />
       <div className="bg-gray-50 min-h-screen w-full">
         <div className="max-w-6xl bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-3xl font-bold mb-8 text-gray-800">
-            {userData?.userType} Experience
-          </h1>
+          {/* Header with Approve Button */}
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">
+              {userData?.userType} Experience
+            </h1>
+            <div className="flex items-center gap-3">
+              {userData?.userProfile?.experienceApproved ? (
+                <>
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                    <FiCheck className="w-4 h-4" />
+                    Experience Approved
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const profile = userData?.userProfile || {};
+                      const updatedProfile = {
+                        ...profile,
+                        experienceApproved: false,
+                        experienceApprovedAt: null,
+                        experienceDisapprovedAt: new Date().toISOString(),
+                      };
+                      userData.userProfile = updatedProfile;
+                      updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
+                      toast.success("Experience has been disapproved.");
+                      window.dispatchEvent(new Event('storage'));
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
+                  >
+                    <FiX className="w-4 h-4" />
+                    Disapprove
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const profile = userData?.userProfile || {};
+                    const updatedProfile = {
+                      ...profile,
+                      experienceApproved: true,
+                      experienceApprovedAt: new Date().toISOString(),
+                    };
+                    userData.userProfile = updatedProfile;
+                    updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
+                    // Associate/Agent: set user to partially verified
+                    if (adminRole === "ASSOCIATE" || adminRole === "AGENT") {
+                      updateUserInLocalStorage(userData.id, { status: "PARTIALLY_VERIFIED" });
+                      Object.assign(userData, { status: "PARTIALLY_VERIFIED" });
+                    }
+                    toast.success("Experience section has been approved!");
+                    window.dispatchEvent(new Event('storage'));
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                >
+                  <FiCheck className="w-4 h-4" />
+                  Approve
+                </button>
+              )}
+            </div>
+          </div>
 
           <form onSubmit={handleEvaluationSubmit} className="space-y-8">
-            {/* Skills Section */}
+            {/* Skills Section - 4-Column Grid Layout */}
             <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-800">
                   {userData?.userType} Information
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingFields((prev) => !prev)}
-                  className="focus:outline-none"
-                  disabled={isSavingInfo}
-                >
-                  <SquarePen className="h-6 w-6 text-blue-700" />
-                </button>
+                {!isEditingFields && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingFields({ ...info });
+                      setIsEditingFields(true);
+                    }}
+                    className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition text-sm font-medium"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                    Edit
+                  </button>
+                )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-                {fields.map((field, index) => (
-                  <div key={index} className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      {field.label}
-                    </label>
-                    <div className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
-                      {userType.toLowerCase() === "contractor" &&
-                      field.name == "experience" ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full table-auto border-collapse text-xs">
-                            <thead>
-                              <tr className="bg-gray-100 text-left text-xs font-semibold text-gray-600">
-                                <th className="px-2 py-2 border">Category</th>
-                                <th className="px-2 py-2 border">Class</th>
-                                <th className="px-2 py-2 border">Years</th>
-                                <th className="px-2 py-2 border">
-                                  Certificate
-                                </th>
-                                <th className="px-2 py-2 border">License</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {userData?.userProfile?.contractorExperiences?.map(
-                                (exp, idx) => (
-                                  <tr
-                                    key={idx}
-                                    className="border-b hover:bg-gray-50"
-                                  >
-                                    <td className="px-2 py-2 border text-xs">
-                                      {typeof exp === "object"
-                                        ? exp.category
-                                        : exp}
-                                    </td>
-                                    <td className="px-2 py-2 border text-xs">
-                                      {typeof exp === "object"
-                                        ? exp.categoryClass
-                                        : "N/A"}
-                                    </td>
-                                    <td className="px-2 py-2 border text-xs">
-                                      {typeof exp === "object"
-                                        ? exp.yearsOfExperience
-                                        : "N/A"}
-                                    </td>
-                                    <td className="px-2 py-2 border text-xs">
-                                      {typeof exp === "object" &&
-                                      exp.certificate ? (
-                                        <a
-                                          href={exp.certificate}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 hover:text-blue-800 underline"
-                                        >
-                                          View
-                                        </a>
-                                      ) : (
-                                        "None"
-                                      )}
-                                    </td>
-                                    <td className="px-2 py-2 border text-xs">
-                                      {typeof exp === "object" &&
-                                      exp.license ? (
-                                        <a
-                                          href={exp.license}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 hover:text-blue-800 underline"
-                                        >
-                                          View
-                                        </a>
-                                      ) : (
-                                        "None"
-                                      )}
-                                    </td>
-                                  </tr>
-                                ),
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : isEditingFields ? (
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {fields.map((field, index) => {
+                  // Skip contractor experience table - handled in Work Categories section
+                  if (userType.toLowerCase() === "contractor" && field.name === "experience") {
+                    return null;
+                  }
+
+                  const fieldValue = typeof info[field.name] === "string" ? info[field.name] : "";
+
+                  return (
+                    <div key={index}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {field.label}
+                      </label>
+                      {isEditingFields ? (
                         <select
-                          value={editingFields[field.name] || info[field.name]}
+                          value={editingFields[field.name] ?? fieldValue ?? ""}
                           onChange={(e) => {
-                            setEditingFields((prev) => ({
-                              ...prev,
-                              [field.name]: e.target.value,
-                            }));
+                            const newValue = e.target.value;
+                            setEditingFields((prev) => {
+                              const updated = { ...prev, [field.name]: newValue };
+                              // Reset specialization when parent field changes
+                              if (field.name === "skill" || field.name === "profession" || field.name === "category") {
+                                updated.specialization = "";
+                              }
+                              return updated;
+                            });
                           }}
-                          className="w-full p-2 border border-blue-300 rounded-md text-sm"
+                          className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                         >
+                          <option value="">Select {field.label.toLowerCase()}</option>
                           {field.options.map((opt, i) => (
                             <option key={i} value={opt}>
                               {opt}
@@ -988,17 +1541,28 @@ const removeCategory = (index: number) => {
                           ))}
                         </select>
                       ) : (
-                        info[field.name]
+                        <div className="w-full p-3 bg-gray-100 rounded-lg text-sm text-gray-900">
+                          {fieldValue || "Not Provided"}
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
               {isEditingFields && (
-                <div className="mt-4 flex justify-end gap-2">
+                <div className="mt-6 flex justify-end gap-3">
                   <button
                     type="button"
-                    className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium disabled:opacity-50"
+                    onClick={() => setIsEditingFields(false)}
+                    disabled={isSavingInfo}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => {
                       handleEditSkill(editingFields);
                     }}
@@ -1006,19 +1570,204 @@ const removeCategory = (index: number) => {
                   >
                     {isSavingInfo ? "Saving..." : "Save"}
                   </button>
-                  <button
-                    type="button"
-                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => setIsEditingFields(false)}
-                    disabled={isSavingInfo}
-                  >
-                    Cancel
-                  </button>
                 </div>
               )}
             </div>
 
-            {/* {userType} Project Attachments */}
+            {/* Contractor Categories Section */}
+            {userType === "CONTRACTOR" && (
+              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Work Categories
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={addCategory}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    Add Category
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {categories.map((cat, index) => (
+                    <div key={index} className="bg-white p-4 rounded-lg border border-gray-200 relative">
+                      {categories.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeCategory(index)}
+                          className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                          title="Remove category"
+                        >
+                          <XMarkIcon className="w-5 h-5" />
+                        </button>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Category */}
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Category
+                          </label>
+                          <select
+                            value={cat.category}
+                            onChange={(e) => {
+                              const newCategory = e.target.value;
+                              const updated = [...categories];
+                              updated[index].category = newCategory;
+                              updated[index].specialization = ""; // Reset specialization when category changes
+                              setCategories(updated);
+
+                              // Auto-add a project row for this category if not already exists
+                              if (newCategory) {
+                                const projectExists = attachments.some(
+                                  (att) => att.projectName?.toLowerCase().includes(newCategory.toLowerCase())
+                                );
+                                if (!projectExists) {
+                                  const newProject = {
+                                    id: attachments.length + 1,
+                                    projectName: `${newCategory} Project`,
+                                    files: [],
+                                    category: newCategory,
+                                  };
+                                  setAttachments([...attachments, newProject]);
+                                  toast.info(`Project row added for ${newCategory}`);
+                                }
+                              }
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="">Select category</option>
+                            {Object.keys(CONTRACTOR_SPECIALIZATIONS).map((cat, i) => (
+                              <option key={i} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Specialization */}
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Specialization
+                          </label>
+                          <select
+                            value={cat.specialization}
+                            onChange={(e) => {
+                              const updated = [...categories];
+                              updated[index].specialization = e.target.value;
+                              setCategories(updated);
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                            disabled={!cat.category}
+                          >
+                            <option value="">Select specialization</option>
+                            {(CONTRACTOR_SPECIALIZATIONS[cat.category as keyof typeof CONTRACTOR_SPECIALIZATIONS] || []).map((spec, i) => (
+                              <option key={i} value={spec}>{spec}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Class */}
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            NCA Class
+                          </label>
+                          <select
+                            value={cat.class}
+                            onChange={(e) => {
+                              const updated = [...categories];
+                              updated[index].class = e.target.value;
+                              setCategories(updated);
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="">Select class</option>
+                            {["NCA1", "NCA2", "NCA3", "NCA4", "NCA5", "NCA6", "NCA7", "NCA8"].map((c, i) => (
+                              <option key={i} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Years of Experience */}
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Years of Experience
+                          </label>
+                          <select
+                            value={cat.years}
+                            onChange={(e) => {
+                              const updated = [...categories];
+                              updated[index].years = e.target.value;
+                              setCategories(updated);
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="">Select experience</option>
+                            {["10+ years", "7-10 years", "5-7 years", "3-5 years", "1-3 years", "Less than 1 year"].map((y, i) => (
+                              <option key={i} value={y}>{y}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Category info hint */}
+                      {cat.category && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-700">
+                            <span className="font-medium">Note:</span> For {cat.category}, the following documents will be required in Account Uploads:
+                          </p>
+                          <ul className="mt-2 text-sm text-blue-600 list-disc list-inside">
+                            <li>{cat.category} Certificate</li>
+                            <li>{cat.category} Practice License</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Save Categories Button */}
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Filter valid categories and save
+                      const validCategories = categories.filter(c => c.category && c.class && c.years);
+                      if (validCategories.length === 0) {
+                        toast.error("Please fill in at least one category with all required fields");
+                        return;
+                      }
+
+                      // Save to localStorage for Account Uploads to pick up
+                      const contractorExperiences = validCategories.map(c => ({
+                        category: c.category,
+                        specialization: c.specialization,
+                        categoryClass: c.class,
+                        yearsOfExperience: c.years,
+                      }));
+
+                      const profile = userData?.userProfile || {};
+                      const updatedProfile = {
+                        ...profile,
+                        contractorExperiences,
+                        contractorCategories: validCategories, // Store categories for document generation
+                      };
+                      userData.userProfile = updatedProfile;
+                      updateUserInLocalStorage(userData.id, { userProfile: updatedProfile });
+
+                      toast.success("Categories saved successfully!");
+                    }}
+                    className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+                  >
+                    Save Categories
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* {userType} Project Attachments - Hidden for PROFESSIONAL and FUNDI users in admin register */}
+            {userType !== "PROFESSIONAL" && userType !== "FUNDI" && (
             <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
@@ -1147,7 +1896,7 @@ const removeCategory = (index: number) => {
                 </table>
               </div>
 
-              {/* Add New Projects Section */}
+              {/* Add New Projects Section - for non-professional, non-fundi users */}
               {missingProjectCount > 0 && (
                 <div className="border-t border-gray-200 bg-blue-50">
                   <div className="px-6 py-4">
@@ -1291,6 +2040,488 @@ const removeCategory = (index: number) => {
                 </div>
               )}
             </div>
+            )}
+
+            {/* Display Existing Projects for FUNDI users */}
+            {userType === "FUNDI" && attachments.length > 0 && (
+              <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Fundi Projects
+                    </h3>
+                    <span className="text-sm text-gray-600">
+                      {attachments.length} of {requiredProjectCount} required projects
+                    </span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-gray-700">
+                    <thead className="bg-gray-50 text-left">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold">No.</th>
+                        <th className="px-6 py-4 font-semibold">Project Name</th>
+                        <th className="px-6 py-4 font-semibold">Uploaded Files</th>
+                        <th className="px-6 py-4 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {attachments.map((row, index) => (
+                        <tr key={row.id} className="hover:bg-gray-50 transition">
+                          <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+                          <td className="px-6 py-4 font-medium">
+                            {row.projectName || `Fundi Project ${index + 1}`}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-2">
+                              {row.files.length > 0 ? (
+                                row.files.map((file, fileIndex) => {
+                                  const isRemoving = fileActionLoading[`remove-${index}-${fileIndex}`];
+                                  return (
+                                    <div
+                                      key={fileIndex}
+                                      className="flex items-center justify-between bg-gray-100 p-2 rounded-md shadow-sm"
+                                    >
+                                      <span className="truncate text-sm">{file.name}</span>
+                                      <div className="flex space-x-2 items-center">
+                                        <a
+                                          href={file.url}
+                                          download={file.name}
+                                          className="text-blue-600 hover:text-blue-800"
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <ArrowDownTrayIcon className="h-5 w-5" />
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveFile(index, fileIndex)}
+                                          className="text-red-500 hover:text-red-700 disabled:opacity-50"
+                                          disabled={isRemoving}
+                                        >
+                                          {isRemoving ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                                          ) : (
+                                            <XMarkIcon className="h-5 w-5" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-gray-400 text-sm">No files uploaded</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="file"
+                              multiple
+                              onChange={(e) => handleFileUpload(e, index)}
+                              className="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-3
+                                file:rounded-md file:border-0
+                                file:bg-blue-600 file:text-white
+                                hover:file:bg-blue-700
+                                cursor-pointer disabled:opacity-50"
+                              disabled={fileActionLoading[`add-${index}`]}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Add Missing Projects Section - for FUNDI users */}
+            {userType === "FUNDI" && missingProjectCount > 0 && (
+            <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                <div className="border-t border-gray-200 bg-blue-50">
+                  <div className="px-6 py-4">
+                    <h4 className="text-md font-semibold text-blue-900 mb-4">
+                      Add Missing Projects ({missingProjectCount} remaining)
+                    </h4>
+                    <p className="text-sm text-blue-700 mb-4">
+                      Add projects on behalf of the user to complete their
+                      experience profile:
+                    </p>
+
+                    {Array.from(
+                      { length: Math.min(missingProjectCount, 3) },
+                      (_, index) => {
+                        const projectId = `new_${index}`;
+                        const project = newProjects[projectId] || {
+                          name: "",
+                          files: [],
+                        };
+                        const isLoading = uploadingProjects[projectId];
+
+                        return (
+                          <div
+                            key={projectId}
+                            className="mb-6 p-4 bg-white rounded-lg border border-blue-200"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Project Name
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Enter project name"
+                                  value={project.name}
+                                  onChange={(e) =>
+                                    setNewProjects((prev) => ({
+                                      ...prev,
+                                      [projectId]: {
+                                        ...project,
+                                        name: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Project Files
+                                </label>
+                                <div className="space-y-2">
+                                  {project.files.map(
+                                    (file: File, fileIndex: number) => (
+                                      <div
+                                        key={fileIndex}
+                                        className="flex items-center justify-between bg-gray-100 p-2 rounded-md"
+                                      >
+                                        <span className="text-sm text-gray-700 truncate">
+                                          {file.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updatedFiles = [
+                                              ...project.files,
+                                            ];
+                                            updatedFiles.splice(fileIndex, 1);
+                                            setNewProjects((prev) => ({
+                                              ...prev,
+                                              [projectId]: {
+                                                ...project,
+                                                files: updatedFiles,
+                                              },
+                                            }));
+                                          }}
+                                          className="text-red-500 hover:text-red-700"
+                                        >
+                                          <XMarkIcon className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <input
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => {
+                                      const files = Array.from(
+                                        e.target.files || [],
+                                      );
+                                      setNewProjects((prev) => ({
+                                        ...prev,
+                                        [projectId]: {
+                                          ...project,
+                                          files: [...project.files, ...files],
+                                        },
+                                      }));
+                                    }}
+                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 flex justify-end">
+                              {isLoading ? (
+                                <div className="flex items-center gap-2 text-blue-600">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                  <span className="text-sm">
+                                    Adding project...
+                                  </span>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleAddNewProject(
+                                      projectId,
+                                      project.name,
+                                      project.files,
+                                    )
+                                  }
+                                  disabled={
+                                    !project.name.trim() ||
+                                    project.files.length === 0 ||
+                                    isLoading
+                                  }
+                                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <PlusIcon className="w-4 h-4" />
+                                  <span className="text-sm font-medium">
+                                    Add Project
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+                </div>
+            </div>
+            )}
+
+            {/* Display Existing Projects for PROFESSIONAL users */}
+            {userType === "PROFESSIONAL" && attachments.length > 0 && (
+              <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Professional Projects
+                    </h3>
+                    <span className="text-sm text-gray-600">
+                      {attachments.length} of {requiredProjectCount} required projects
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-gray-700">
+                    <thead className="bg-gray-50 text-left">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold">No.</th>
+                        <th className="px-6 py-4 font-semibold">Project Name</th>
+                        <th className="px-6 py-4 font-semibold">Uploaded Files</th>
+                        <th className="px-6 py-4 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {attachments.map((row, index) => (
+                        <tr key={row.id} className="hover:bg-gray-50 transition">
+                          <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+                          <td className="px-6 py-4 font-medium">
+                            {row.projectName || `Professional Project ${index + 1}`}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-2">
+                              {row.files.length > 0 ? (
+                                row.files.map((file, fileIndex) => {
+                                  const isRemoving = fileActionLoading[`remove-${index}-${fileIndex}`];
+                                  return (
+                                    <div
+                                      key={fileIndex}
+                                      className="flex items-center justify-between bg-gray-100 p-2 rounded-md shadow-sm"
+                                    >
+                                      <span className="truncate text-sm">{file.name}</span>
+                                      <div className="flex space-x-2 items-center">
+                                        <a
+                                          href={file.url}
+                                          download={file.name}
+                                          className="text-blue-600 hover:text-blue-800"
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <ArrowDownTrayIcon className="h-5 w-5" />
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveFile(index, fileIndex)}
+                                          className="text-red-500 hover:text-red-700 disabled:opacity-50"
+                                          disabled={isRemoving}
+                                        >
+                                          {isRemoving ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                                          ) : (
+                                            <XMarkIcon className="h-5 w-5" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-gray-400 text-sm">No files uploaded</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <input
+                              type="file"
+                              multiple
+                              onChange={(e) => handleFileUpload(e, index)}
+                              className="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-3
+                                file:rounded-md file:border-0
+                                file:bg-blue-600 file:text-white
+                                hover:file:bg-blue-700
+                                cursor-pointer disabled:opacity-50"
+                              disabled={fileActionLoading[`add-${index}`]}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Add Missing Projects Section - for PROFESSIONAL users */}
+            {userType === "PROFESSIONAL" && missingProjectCount > 0 && (
+              <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-blue-50">
+                  <div className="px-6 py-4">
+                    <h4 className="text-md font-semibold text-blue-900 mb-4">
+                      Add Missing Projects ({missingProjectCount} remaining)
+                    </h4>
+                    <p className="text-sm text-blue-700 mb-4">
+                      Add projects on behalf of the user to complete their
+                      experience profile:
+                    </p>
+
+                    {Array.from(
+                      { length: Math.min(missingProjectCount, 3) },
+                      (_, index) => {
+                        const projectId = `new_${index}`;
+                        const project = newProjects[projectId] || {
+                          name: "",
+                          files: [],
+                        };
+                        const isLoading = uploadingProjects[projectId];
+
+                        return (
+                          <div
+                            key={projectId}
+                            className="mb-6 p-4 bg-white rounded-lg border border-blue-200"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Project Name
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Enter project name"
+                                  value={project.name}
+                                  onChange={(e) =>
+                                    setNewProjects((prev) => ({
+                                      ...prev,
+                                      [projectId]: {
+                                        ...project,
+                                        name: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Project Files
+                                </label>
+                                <div className="space-y-2">
+                                  {project.files.map(
+                                    (file: File, fileIndex: number) => (
+                                      <div
+                                        key={fileIndex}
+                                        className="flex items-center justify-between bg-gray-100 p-2 rounded-md"
+                                      >
+                                        <span className="text-sm text-gray-700 truncate">
+                                          {file.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updatedFiles = [
+                                              ...project.files,
+                                            ];
+                                            updatedFiles.splice(fileIndex, 1);
+                                            setNewProjects((prev) => ({
+                                              ...prev,
+                                              [projectId]: {
+                                                ...project,
+                                                files: updatedFiles,
+                                              },
+                                            }));
+                                          }}
+                                          className="text-red-500 hover:text-red-700"
+                                        >
+                                          <XMarkIcon className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <input
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => {
+                                      const files = Array.from(
+                                        e.target.files || [],
+                                      );
+                                      setNewProjects((prev) => ({
+                                        ...prev,
+                                        [projectId]: {
+                                          ...project,
+                                          files: [...project.files, ...files],
+                                        },
+                                      }));
+                                    }}
+                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 flex justify-end">
+                              {isLoading ? (
+                                <div className="flex items-center gap-2 text-blue-600">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                  <span className="text-sm">
+                                    Adding project...
+                                  </span>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleAddNewProject(
+                                      projectId,
+                                      project.name,
+                                      project.files,
+                                    )
+                                  }
+                                  disabled={
+                                    !project.name.trim() ||
+                                    project.files.length === 0 ||
+                                    isLoading
+                                  }
+                                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <PlusIcon className="w-4 h-4" />
+                                  <span className="text-sm font-medium">
+                                    Add Project
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Evaluation Criteria Instructions */}
             {userType.toLowerCase() === "fundi" &&
               !userData?.userProfile?.fundiEvaluation && (
@@ -1327,38 +2558,82 @@ const removeCategory = (index: number) => {
             {userType.toLowerCase() === "fundi" &&
               !userData?.userProfile?.fundiEvaluation && (
                 <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
-                  <h2 className="text-xl font-semibold mb-6 text-gray-800">
-                    Evaluation Form
-                  </h2>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-800">
+                        Evaluation Form
+                      </h2>
+                      {(userData?.userProfile?.skill || userData?.skills) && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Questions for: <span className="font-medium text-blue-600">{userData?.userProfile?.skill || userData?.skills}</span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={addNewQuestion}
+                        className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                        Add Question
+                      </button>
+                      {(userData?.userProfile?.skill || userData?.skills) && (
+                        <button
+                          type="button"
+                          onClick={() => saveQuestionsTemplate(userData?.userProfile?.skill || userData?.skills, questions)}
+                          className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
+                        >
+                          Save as Template
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Replacing inner <form> with <div> */}
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {questions.map((q) => (
-                        <div key={q.id} className="space-y-2 relative">
+                        <div key={q.id} className="space-y-2 relative bg-white p-4 rounded-lg border border-gray-200">
                           {q.isEditing ? (
-                            <input
-                              value={q.text}
-                              onChange={(e) =>
-                                handleQuestionEdit(q.id, e.target.value)
-                              }
-                              onBlur={(e) =>
-                                handleQuestionEdit(q.id, e.target.value)
-                              }
-                              className="w-full text-sm p-2 border border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900"
-                            />
+                            <div className="flex items-center gap-2">
+                              <input
+                                value={q.text}
+                                onChange={(e) =>
+                                  handleQuestionEdit(q.id, e.target.value)
+                                }
+                                onBlur={(e) =>
+                                  handleQuestionEdit(q.id, e.target.value)
+                                }
+                                onKeyDown={(e) => e.stopPropagation()}
+                                className="flex-1 text-sm p-2 border border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900"
+                                placeholder="Type your question here..."
+                                autoFocus
+                              />
+                            </div>
                           ) : (
                             <>
-                              <label className="block text-sm font-medium text-gray-700 pr-8">
+                              <label className="block text-sm font-medium text-gray-700 pr-16">
                                 {q.text}
                               </label>
-                              <button
-                                type="button"
-                                className="absolute top-1 right-1 text-gray-400 hover:text-gray-600"
-                                onClick={() => handleEditToggle(q.id)}
-                              >
-                                <PencilIcon className="w-4 h-4" />
-                              </button>
+                              <div className="absolute top-3 right-3 flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  className="p-1 text-gray-400 hover:text-blue-600 transition"
+                                  onClick={() => handleEditToggle(q.id)}
+                                  title="Edit question"
+                                >
+                                  <PencilIcon className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="p-1 text-gray-400 hover:text-red-600 transition"
+                                  onClick={() => deleteQuestion(q.id)}
+                                  title="Delete question"
+                                >
+                                  <XMarkIcon className="w-4 h-4" />
+                                </button>
+                              </div>
                             </>
                           )}
 
@@ -1370,7 +2645,8 @@ const removeCategory = (index: number) => {
                               }
                               className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-900 focus:border-blue-900"
                             >
-                              {q.options.map((opt, i) => (
+                              <option value="" disabled>Select an option</option>
+                              {q.options?.map((opt, i) => (
                                 <option key={i} value={opt}>
                                   {opt}
                                 </option>
@@ -1383,6 +2659,7 @@ const removeCategory = (index: number) => {
                               onChange={(e) =>
                                 handleTextChange(q.id, e.target.value)
                               }
+                              onKeyDown={(e) => e.stopPropagation()}
                               className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-900 focus:border-blue-900"
                               placeholder="Enter your response..."
                             />
@@ -1463,11 +2740,11 @@ const removeCategory = (index: number) => {
                       )}
                     </div>
 
-                    <div className="mt-6 text-right flex flex-col items-end gap-2">
+                    <div className="mt-6 flex flex-col sm:flex-row sm:justify-end items-stretch sm:items-center gap-2">
                       {
                         <button
                           type="submit"
-                          className="bg-blue-800 text-white px-6 py-2 rounded hover:bg-blue-700 transition disabled:opacity-60"
+                          className="w-full sm:w-auto bg-blue-800 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-60 font-medium"
                           disabled={isSubmitting}
                         >
                           {isSubmitting ? "Submitting..." : "Submit Evaluation"}
@@ -1739,51 +3016,6 @@ const removeCategory = (index: number) => {
               </div>
             )}
 
-            <div className="mt-6 text-right">
-              <div className="relative inline-block">
-                {/* Show Verify Button only if not admin approved and profile is uploaded */}
-                {!userData?.adminApproved &&
-                  !userData?.approved &&
-                  userData?.userProfile?.complete && (
-                    <button
-                      type="button"
-                      onClick={handleVerify}
-                      className="bg-blue-800 text-white px-6 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={isVerifying}
-                    >
-                      {isVerifying ? "Verifying..." : "Verify"}
-                    </button>
-                  )}
-
-                {/* Show Verified Badge if admin approved */}
-                {userData?.adminApproved && (
-                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                    ✅ Verified
-                  </span>
-                )}
-
-                {/* Legacy verification status (keep for backward compatibility) */}
-                {!userData?.adminApproved && userData?.approved && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 ml-4">
-                    Verified
-                  </span>
-                )}
-
-                {/* Verified Message */}
-                {showVerificationMessage && (
-                  <div className="absolute top-full right-0 mt-2 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center justify-between gap-4 min-w-[200px]">
-                    <span>Verified</span>
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="text-sm underline hover:text-gray-100"
-                    >
-                      Close
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
           </form>
         </div>
       </div>

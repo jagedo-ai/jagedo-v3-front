@@ -1,50 +1,55 @@
 import { useState, useEffect } from "react";
 import { FiEdit } from "react-icons/fi";
 import { toast, Toaster } from "sonner";
-// import { getAllCountries } from "@/api/countries.api";
 import { counties } from "@/pages/data/counties";
-import {
-  getUserAddress,
-  updateUserAddress,
-} from "@/api/fakeAddress.api";
+import { getUserAddress, updateUserAddress } from "@/api/fakeAddress.api";
+import { getAllCountries } from "@/api/countries.api";
+import { getAdminRole } from "@/config/adminRoles";
 
-const getInitialAddress = (userId: number) => {
+const getInitialAddress = (userId: number | string, userData?: any) => {
   const saved = getUserAddress(userId);
-  return (
-    saved || {
-      country: "",
-      county: "",
-      subCounty: "",
-      estate: "",
-    }
-  );
+  if (saved) return saved;
+
+  // Fallback to userData if available
+  if (userData && (userData.country || userData.county)) {
+    return {
+      country: userData.country || "",
+      county: userData.county || "",
+      subCounty: userData.subCounty || "",
+      estate: userData.estate || userData.town || userData.village || "",
+    };
+  }
+
+  return {
+    country: "",
+    county: "",
+    subCounty: "",
+    estate: "",
+  };
 };
 
 const Address = ({ userData }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
+  if (adminRole === "AGENT") {
+    return (
+      <div className="bg-white flex">
+        <div className="w-full max-w-3xl items-center p-6">
+          <div className="p-8 text-center text-gray-500">
+            You do not have permission to view address information.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [isEditing, setIsEditing] = useState(false);
-  const [address, setAddress] = useState(getInitialAddress(userData.id));
+  const [address, setAddress] = useState(getInitialAddress(userData.id, userData));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [countriesList, setCountriesList] = useState<any[]>([]);
   const [isLoadingCountries, setIsLoadingCountries] = useState(true);
-
-  // --- ORIGINAL API-based countries fetch (commented out) ---
-  // useEffect(() => {
-  //   const fetchCountries = async () => {
-  //     try {
-  //       const data = await getAllCountries();
-  //       //@ts-ignore
-  //       setCountriesList(data.hashSet || []);
-  //     } catch (error) {
-  //       console.error("Failed to fetch countries:", error);
-  //       toast.error("Could not load country list.");
-  //     } finally {
-  //       setIsLoadingCountries(false);
-  //     }
-  //   };
-  //   fetchCountries();
-  // }, []);
-  // --- END ORIGINAL ---
 
   // --- localStorage / static fallback for countries ---
   useEffect(() => {
@@ -58,13 +63,11 @@ const Address = ({ userData }) => {
   }, []);
 
   useEffect(() => {
-    setAddress(getInitialAddress(userData.id));
-  }, [userData.id]);
+    setAddress(getInitialAddress(userData.id, userData));
+  }, [userData.id, userData]);
 
   const countyList =
-    address.country?.toLowerCase() === "kenya"
-      ? Object.keys(counties)
-      : [];
+    address.country?.toLowerCase() === "kenya" ? Object.keys(counties) : [];
 
   const subCountyList =
     address.country?.toLowerCase() === "kenya" && address.county
@@ -96,7 +99,7 @@ const Address = ({ userData }) => {
   };
 
   const handleCancel = () => {
-    setAddress(getInitialAddress(userData.id));
+    setAddress(getInitialAddress(userData.id, userData));
     setIsEditing(false);
   };
 
@@ -108,26 +111,6 @@ const Address = ({ userData }) => {
       estate: "",
     });
   };
-
-  // --- ORIGINAL API-based address update (commented out) ---
-  // const handleEdit = async () => {
-  //   try {
-  //     setIsSubmitting(true);
-  //     const response = await adminUpdateAddress(axiosInstance, address, userData.id);
-  //     if (response.success) {
-  //       toast.success("Address Updated Successfully");
-  //     } else {
-  //       toast.error(response.message || "Error Updating Address");
-  //     }
-  //   } catch (error: any) {
-  //     console.log(error);
-  //     toast.error(error.message || "Error Updating Address");
-  //   } finally {
-  //     setIsEditing(false);
-  //     setIsSubmitting(false);
-  //   }
-  // };
-  // --- END ORIGINAL ---
 
   // --- localStorage-based address update ---
   const handleEdit = () => {
@@ -147,7 +130,7 @@ const Address = ({ userData }) => {
   return (
     <div className="bg-white flex">
       <Toaster position="top-center" richColors />
-      <div className="w-full max-w-3xl p-6">
+      <div className="w-full max-w-3xl items-center p-6">
         <div className="p-8">
           <div className="flex justify-between items-center mb-6 border-b pb-3">
             <h1 className="text-2xl font-bold">My Address</h1>
@@ -161,7 +144,6 @@ const Address = ({ userData }) => {
           </div>
 
           <form className="space-y-4">
-
             {/* Country */}
             <div>
               <label className="block text-sm font-medium">Country</label>
@@ -211,39 +193,32 @@ const Address = ({ userData }) => {
             )}
 
             {/* Sub County */}
-            {address.country?.toLowerCase() === "kenya" &&
-              address.county && (
-                <div>
-                  <label className="block text-sm font-medium">
-                    Sub County
-                  </label>
-                  {isEditing ? (
-                    <select
-                      name="subCounty"
-                      value={address.subCounty}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border-b"
-                    >
-                      <option value="">Select Sub-County</option>
-                      {subCountyList.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="border-b px-4 py-2">
-                      {address.subCounty}
-                    </p>
-                  )}
-                </div>
-              )}
+            {address.country?.toLowerCase() === "kenya" && address.county && (
+              <div>
+                <label className="block text-sm font-medium">Sub County</label>
+                {isEditing ? (
+                  <select
+                    name="subCounty"
+                    value={address.subCounty}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border-b"
+                  >
+                    <option value="">Select Sub-County</option>
+                    {subCountyList.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="border-b px-4 py-2">{address.subCounty}</p>
+                )}
+              </div>
+            )}
 
             {/* Estate */}
             <div>
-              <label className="block text-sm font-medium">
-                Estate / Town
-              </label>
+              <label className="block text-sm font-medium">Estate / Town</label>
               {isEditing ? (
                 <input
                   name="estate"
@@ -252,9 +227,7 @@ const Address = ({ userData }) => {
                   className="w-full px-4 py-2 border-b"
                 />
               ) : (
-                <p className="border-b px-4 py-2">
-                  {address.estate}
-                </p>
+                <p className="border-b px-4 py-2">{address.estate}</p>
               )}
             </div>
 

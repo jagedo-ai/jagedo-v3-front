@@ -122,8 +122,8 @@ export default function CustomerSignup() {
             email: formData.email,
             password: formData.password,
             userType: "CUSTOMER",
-            firstName: formData.firstName || "Pending",
-            lastName: formData.lastName || "User",
+            // firstName: formData.firstName || "Pending",
+            // lastName: formData.lastName || "User",
             accountType: formData.accountType,
             phone: formData.phone,
             profileCompleted: false
@@ -179,6 +179,15 @@ export default function CustomerSignup() {
             localStorage.setItem("mock_users_db", JSON.stringify(exisitingUsers));
         }
 
+        // Save address to user-specific key for profile page
+        const addressData = {
+            country: profileData.country || "Kenya",
+            county: profileData.county || "",
+            subCounty: profileData.subCounty || "",
+            estate: profileData.estate || profileData.town || "",
+        };
+        localStorage.setItem(`address_${updatedUser.id}`, JSON.stringify(addressData));
+
         // Login
         localStorage.setItem("user", JSON.stringify(updatedUser));
         localStorage.setItem("token", "mock_access_token" + updatedUser.id);
@@ -187,9 +196,9 @@ export default function CustomerSignup() {
 
         toast.success("Profile completed! Redirecting to dashboard...");
         setShowProfileCompletionModal(false);
-        
+
         setTimeout(() => {
-            navigate("/profile");
+            navigate("/dashboard/customer");
         }, 1500);
     };
 
@@ -231,10 +240,11 @@ export default function CustomerSignup() {
                 </div>
             </main>
 
-            <ProfileCompletionModal 
+            <ProfileCompletionModal
                 isOpen={showProfileCompletionModal}
                 user={registeredUser}
                 accountType={formData.accountType as any}
+                userType="CUSTOMER"
                 onComplete={handleProfileComplete}
                 onClose={() => setShowProfileCompletionModal(false)}
             />

@@ -12,8 +12,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast, Toaster } from "sonner"
 import { verifyOtp } from "@/api/auth.api"
-import { getAllCountries } from "@/api/countries.api";
-import { counties } from "@/pages/data/counties"
 import GoogleSignIn from "@/components/GoogleSignIn";
 import { getPasswordStrength } from "./PasswordStrength";
 interface CustomerSignupFormProps {
@@ -49,20 +47,6 @@ export function CustomerSignupForm({
   const [timerActive, setTimerActive] = useState(false);
   const [hasInitialOtpBeenSent, setHasInitialOtpBeenSent] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
-  const [countryCode, setCountryCode] = useState("+254")
-  const COUNTRY_CODES = [
-    { code: "+254", flag: "🇰🇪", country: "Kenya" },
-    { code: "+256", flag: "🇺🇬", country: "Uganda" },
-    { code: "+255", flag: "🇹🇿", country: "Tanzania" },
-    { code: "+250", flag: "🇷🇼", country: "Rwanda" }
-  ];
-  const [countries, setCountries] = useState<any[]>([]);
-  const [isLoadingCountries, setIsLoadingCountries] = useState(true);
-
-  // const countyList =
-  //   formData.country.toLowerCase() == "kenya" ? Object.keys(counties) : [];
-
-  // const subCountyList = (formData.country.toLowerCase() == "kenya" && formData.county) ? counties[formData.county as keyof typeof counties] || [] : [];
 
   // OTP timer countdown effect
   useEffect(() => {
@@ -86,42 +70,6 @@ export function CustomerSignupForm({
   }, [timerActive]);
 
 
-  useEffect(() => {
-    // OTP timer countdown effect
-    let interval: NodeJS.Timeout | null = null;
-
-    if (timerActive && otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => {
-          if (prev <= 1) {
-            setTimerActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    // Fetch countries on mount
-    const fetchCountries = async () => {
-      try {
-        const data = await getAllCountries(); // Assuming getAllCountries is self-contained
-        //@ts-ignore
-        setCountries(data.hashSet);
-      } catch (error) {
-        console.error("Failed to fetch countries:", error);
-        toast.error("Could not load country list.");
-      } finally {
-        setIsLoadingCountries(false);
-      }
-    };
-
-    fetchCountries();
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timerActive]);
 
 
 
@@ -144,18 +92,19 @@ export function CustomerSignupForm({
     const newErrors: Record<string, string> = {}
 
     switch (currentStep) {
-      case 1:
-        if (!formData.accountType) {
-          newErrors.accountType = "Please select an account type"
-        }
-        break
-      case 2:
-        if (!formData.email) {
-          newErrors.email = "Email is required"
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-          newErrors.email = "Please enter a valid email address"
-        }
-        break
+  case 1:
+    if (!formData.accountType) {
+      newErrors.accountType = "Please select an account type"
+    }
+    break; // <-- ADD THIS break so we don't fall-through to case 2
+
+  case 2:
+    if (!formData.email) {
+      newErrors.email = "Email is required"
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address"
+    }
+    break
       case 3:
         if (!formData.phone) {
           newErrors.phone = "Phone number is required"
@@ -354,10 +303,10 @@ export function CustomerSignupForm({
     nextStep(); // Auto-advance to next step after verification
   }
 
-  // Reset OTP verification if OTP or method changes
+  // Reset OTP verification only if OTP method changes (not when OTP value changes during verification)
   useEffect(() => {
     setIsOtpVerified(false)
-  }, [formData.otp, formData.otpMethod])
+  }, [formData.otpMethod])
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -514,55 +463,35 @@ export function CustomerSignupForm({
             <div className="space-y-2">
               <Label htmlFor="phone" className="text-gray-700">Phone number</Label>
               <div className="flex items-center border border-gray-500 rounded-lg overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[rgb(0,0,122)]">
-                {/* Country Code Dropdown */}
-                <select
-                  className="p-3 bg-gray-100 text-gray-700 border-r outline-none focus:bg-gray-200 pr-1 pl-1"
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                >
-                  {COUNTRY_CODES.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.flag} {country.code}
-                    </option>
-                  ))}
-                </select>
+                {/* Country Code - Kenya Default (No Dropdown) */}
+                <div className="p-3 bg-gray-100 text-gray-700 border-r text-sm font-medium">
+                  🇰🇪 +254
+                </div>
 
                 {/* Phone Number Input */}
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder={countryCode === "+254" ? "7XXXXXXXX or 1XXXXXXXX" : "Phone number"}
+                  placeholder="7XXXXXXXX or 1XXXXXXXX"
                   className="w-full outline-none focus:ring-0 border-0 px-3"
                   value={formData.phone}
                   onChange={(e) => {
                     const value = e.target.value;
-                    // For Kenya (+254), apply special validation
-                    if (countryCode === "+254") {
-                      // Only allow digits and limit to 9 characters (7 or 1 + 8 digits)
-                      const cleanValue = value.replace(/\D/g, '').slice(0, 9);
-                      // Ensure it starts with 7 or 1
-                      if (cleanValue && !/^[17]/.test(cleanValue)) {
-                        return;
-                      }
-                      updateFormData({
-                        phone: cleanValue,
-                        fullPhoneNumber: `${countryCode}${cleanValue}` // Concatenate here
-                      });
-                    } else {
-                      // For other countries, just allow digits
-                      const cleanValue = value.replace(/\D/g, '');
-                      updateFormData({
-                        phone: cleanValue,
-                        fullPhoneNumber: `${countryCode}${cleanValue}` // Concatenate here
-                      });
+                    // Kenya default - only allow Kenya format
+                    const cleanValue = value.replace(/\D/g, '').slice(0, 9);
+                    // Ensure it starts with 7 or 1
+                    if (cleanValue && !/^[17]/.test(cleanValue)) {
+                      return;
                     }
+                    updateFormData({
+                      phone: cleanValue,
+                      fullPhoneNumber: `+254${cleanValue}`
+                    });
                   }}
                 />
               </div>
               {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
-              {countryCode === "+254" && (
-                <p className="text-xs text-gray-500">Enter your 9-digit phone number starting with 7 or 1</p>
-              )}
+              <p className="text-xs text-gray-500">Enter your 9-digit phone number starting with 7 or 1</p>
             </div>
             {/* <div className="space-y-2 my-2">
               <Label htmlFor="nationalId">National ID</Label>
@@ -688,25 +617,23 @@ export function CustomerSignupForm({
               <p className="text-gray-500">We've sent a 6-digit code to your {formData.otpMethod === "email" ? "email" : "phone"}</p>
 
               <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    id="otp"
-                    type="text"
-                    placeholder="6-digit code"
-                    maxLength={6}
-                    className="text-center text-lg tracking-widest"
-                    value={formData.otp}
-                    onChange={(e) => updateFormData({ otp: e.target.value.replace(/\D/g, "") })}
-                  />
-                  <Button
-                    type="button"
-                    className="bg-[#00a63e] text-white"
-                    onClick={handleVerifyOTP}
-                    disabled={formData.otp.length !== 6 || isSubmitting}
-                  >
-                    {isSubmitting ? "Verifying..." : "Verify"}
-                  </Button>
-                </div>
+                <Input
+                  id="otp"
+                  type="text"
+                  placeholder="6-digit code"
+                  maxLength={6}
+                  className="text-center text-lg tracking-widest"
+                  value={formData.otp}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "");
+                    updateFormData({ otp: value });
+                    // Auto-verify when 6 digits are entered
+                    if (value.length === 6) {                        
+                      
+                      setTimeout(() => handleVerifyOTP(), 0);
+                    }
+                  }}
+                />
 
                 {errors.otp && <p className="text-red-500 text-sm">{errors.otp}</p>}
 
@@ -734,7 +661,6 @@ export function CustomerSignupForm({
             </div>
           </div>
         )
-
       // case 6:
       //   if (formData.accountType === "INDIVIDUAL") {
       //     return (
@@ -878,121 +804,6 @@ export function CustomerSignupForm({
       //     )
       //   }
 
-      // case 7:
-      //   return (
-      //     <div className="font-roboto px-0 xs:p-8 bg-white mt-10 rounded-2xl w-full max-w-lg mx-auto">
-      //       {/* Section Title */}
-      //       {/* Logo */}
-      //       <div className="flex justify-center">
-      //         <img
-      //           src="/jagedologo.png"
-      //           alt="JaGedo Logo"
-      //           className="h-12 mb-6"
-      //         />
-      //       </div>
-      //       <h3 className="text-2xl font-semibold text-[rgb(0,0,122)] mt-10 xs:mt-0 mb-6 text-center">
-      //         Location Information
-      //       </h3>
-
-      //       {/* Country Selection */}
-      //       <div className="mb-4">
-      //         <Select
-      //           value={formData.country || ""}
-      //           onValueChange={(value) => updateFormData({ country: value })}
-      //           disabled={isLoadingCountries}
-      //         >
-      //           <SelectTrigger className="w-full border border-gray-300 p-3 h-auto rounded-lg focus:ring-2 focus:ring-[rgb(0,0,122)]">
-      //             <SelectValue placeholder={isLoadingCountries ? "Loading countries..." : "Select your country"} />
-      //           </SelectTrigger>
-      //           <SelectContent className="bg-white">
-      //             {Array.from(new Set(countries.map(country => country.name)))
-      //               .map((countryName) => (
-      //                 <SelectItem key={countryName} value={countryName}>
-      //                   {countryName}
-      //                 </SelectItem>
-      //               ))
-      //             }
-      //           </SelectContent>
-      //         </Select>
-      //         {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country}</p>}
-      //       </div>
-
-      //       {/* County Input */}
-      //       {formData.country === "Kenya" && (
-      //         <div className="mb-4">
-      //           <Select
-      //             value={formData.county || ""}
-      //             onValueChange={(value) =>
-      //               updateFormData({ county: value, subCounty: "" })
-      //             }
-      //           >
-      //             <SelectTrigger className="w-full border border-gray-300 p-3 h-auto rounded-lg focus:ring-2 focus:ring-[rgb(0,0,122)]">
-      //               <SelectValue placeholder="Select your county" />
-      //             </SelectTrigger>
-      //             <SelectContent className="bg-white">
-      //               {countyList.map((countyName) => (
-      //                 <SelectItem key={countyName} value={countyName}>
-      //                   {countyName}
-      //                 </SelectItem>
-      //               ))}
-      //             </SelectContent>
-      //           </Select>
-      //           {errors.county && (
-      //             <p className="text-red-500 text-sm mt-1">{errors.county}</p>
-      //           )}
-      //         </div>
-      //       )}
-
-      //       {/* Sub-county Input */}
-      //       {formData.country === "Kenya" && formData.county && (
-      //         <div className="mb-4">
-      //           <Select
-      //             value={formData.subCounty || ""}
-      //             onValueChange={(value) => updateFormData({ subCounty: value })}
-      //           >
-      //             <SelectTrigger className="w-full border border-gray-300 p-3 h-auto rounded-lg focus:ring-2 focus:ring-[rgb(0,0,122)]">
-      //               <SelectValue placeholder="Select your sub-county" />
-      //             </SelectTrigger>
-      //             <SelectContent className="bg-white">
-      //               {subCountyList.map((sub) => (
-      //                 <SelectItem key={sub} value={sub}>
-      //                   {sub}
-      //                 </SelectItem>
-      //               ))}
-      //             </SelectContent>
-      //           </Select>
-      //           {errors.subCounty && (
-      //             <p className="text-red-500 text-sm mt-1">{errors.subCounty}</p>
-      //           )}
-      //         </div>
-      //       )}
-
-      //       {/* Town Input */}
-      //       <div className="mb-4">
-      //         <input
-      //           type="text"
-      //           placeholder="Town/City"
-      //           value={formData.town}
-      //           onChange={(e) => updateFormData({ town: e.target.value })}
-      //           className="border border-gray-300 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-[rgb(0,0,122)]"
-      //         />
-      //         {errors.town && <p className="text-red-500 text-sm">{errors.town}</p>}
-      //       </div>
-
-      //       {/* Estate Input */}
-      //       <div className="mb-6">
-      //         <input
-      //           type="text"
-      //           placeholder="Estate/Village"
-      //           value={formData.estate}
-      //           onChange={(e) => updateFormData({ estate: e.target.value })}
-      //           className="border border-gray-300 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-[rgb(0,0,122)]"
-      //         />
-      //         {errors.estate && <p className="text-red-500 text-sm">{errors.estate}</p>}
-      //       </div>
-      //     </div>
-      //   )
-
       case 6:
         return (
           <div className="space-y-6 animate-fade-in max-w-md mx-auto">
@@ -1038,20 +849,21 @@ export function CustomerSignupForm({
               
               </div>
               {/* Password Requirements Checklist */}
-              <div className="mt-2 space-y-1.5">
-                <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && formData.password.length >= 8 ? 'text-green-600' : 'text-red-500'}`}>
-                  {formData.password && formData.password.length >= 8 ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} At least 8 characters
-                </p>
-                <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
-                  {formData.password && /[A-Z]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One uppercase letter
-                </p>
-                <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[a-z]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
-                  {formData.password && /[a-z]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One lowercase letter
-                </p>
-                <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[^A-Za-z0-9]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
-                  {formData.password && /[^A-Za-z0-9]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One special character
-                </p>
-              </div>
+             <div className="mt-2 grid grid-cols-2 gap-2">
+  <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && formData.password.length >= 8 ? 'text-green-600' : 'text-red-500'}`}>
+      {formData.password && formData.password.length >= 8 ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} At least 8 characters
+  </p>
+  <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
+      {formData.password && /[A-Z]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One uppercase letter
+  </p>
+  <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[a-z]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
+      {formData.password && /[a-z]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One lowercase letter
+  </p>
+  <p className={`text-sm flex items-center gap-2 transition-colors ${formData.password && /[^A-Za-z0-9]/.test(formData.password) ? 'text-green-600' : 'text-red-500'}`}>
+      {formData.password && /[^A-Za-z0-9]/.test(formData.password) ? <Check className="h-4 w-4 flex-shrink-0" /> : <span className="h-4 w-4 flex-shrink-0 text-center">&#x2022;</span>} One special character
+  </p>
+</div>
+
 
               {/* Confirm Password Input */}
               <div className="space-y-1">
@@ -1125,6 +937,7 @@ export function CustomerSignupForm({
 
   //const isLastStep = currentStep === 8;
   const isLastStep = currentStep === 6;
+
 
   return (
     <form

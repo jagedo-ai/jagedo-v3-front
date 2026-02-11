@@ -42,29 +42,74 @@ const PROJECT_REQUIREMENTS = {
 
 
 const SPECIALIZATIONS_BY_CATEGORY: Record<string, string[]> = {
-    
-    
-   
- 
-    "Architect": [
-        "Residential",
-        "Commercial",
-        "Industrial",
-        "Urban",
+    "Project Manager": [
+        "Construction Project Management", "Infrastructure Projects", "Residential Development",
+        "Commercial Development", "Industrial Projects", "Government Projects",
+        "Real Estate Development", "Renovation & Remodeling", "Green Building Projects", "Multi-site Management",
     ],
-    
+    "Architect": [
+        "Residential Architecture", "Commercial Architecture", "Industrial Architecture",
+        "Landscape Architecture", "Interior Architecture", "Urban Planning",
+        "Sustainable Design", "Historic Preservation", "Healthcare Facilities", "Educational Facilities",
+    ],
+    "Water Engineer": [
+        "Water Supply Systems", "Wastewater Treatment", "Stormwater Management",
+        "Irrigation Engineering", "Hydraulic Structures", "Pipeline Engineering",
+        "Water Resources Management", "Flood Control", "Desalination Systems", "Environmental Water Solutions",
+    ],
+    "Roads Engineer": [
+        "Highway Design", "Urban Road Design", "Pavement Engineering", "Traffic Engineering",
+        "Bridge Engineering", "Road Rehabilitation", "Drainage Design",
+        "Survey & Mapping", "Construction Supervision", "Road Safety Engineering",
+    ],
+    "Structural Engineer": [
+        "Building Structures", "Bridge Structures", "Industrial Structures", "Concrete Structures",
+        "Steel Structures", "Foundation Engineering", "Seismic Design",
+        "Structural Assessment", "Retrofit & Rehabilitation", "Temporary Structures",
+    ],
+    "Mechanical Engineer": [
+        "HVAC Systems", "Plumbing Systems", "Fire Protection Systems", "Elevator & Escalator Systems",
+        "Industrial Machinery", "Energy Systems", "Building Automation",
+        "Refrigeration Systems", "Ventilation Design", "Mechanical Maintenance",
+    ],
+    "Electrical Engineer": [
+        "Power Distribution", "Lighting Design", "Building Electrical Systems", "Industrial Electrical",
+        "Renewable Energy Systems", "Control Systems", "Telecommunications",
+        "Security Systems", "Fire Alarm Systems", "Energy Management",
+    ],
+    "Surveyor": [
+        "Land Surveying", "Topographic Surveys", "Construction Surveying", "Cadastral Surveys",
+        "Engineering Surveys", "GPS & GIS Mapping", "Hydrographic Surveys",
+        "Quantity Surveying", "Boundary Surveys", "As-built Surveys",
+    ],
+    "Quantity Surveyor": [
+        "Cost Estimation", "Bill of Quantities", "Contract Administration", "Value Engineering",
+        "Project Cost Control", "Procurement Management", "Final Account Settlement",
+        "Risk Assessment", "Feasibility Studies", "Life Cycle Costing",
+    ],
+    "Construction Manager": ["Site Management", "Project Coordination", "Resource Planning", "Quality Control"],
+    "Environment Officer": ["Environmental Impact", "Compliance", "Waste Management", "Sustainability"],
+    "Geotechnical Engineer": ["Soil Investigation", "Foundation Design", "Slope Stability", "Ground Improvement"],
+    "Geologist": ["Site Investigation", "Rock Mechanics", "Hydrogeology", "Mineral Exploration"],
+    "Hydrologist": ["Water Resources", "Flood Analysis", "Watershed Management", "Groundwater Studies"],
+    "Interior Designer": ["Residential Interiors", "Commercial Interiors", "Hospitality Design", "Office Design"],
+    "Land Surveyor": ["Cadastral Surveys", "Topographic Surveys", "Boundary Surveys", "GPS Mapping"],
+    "Landscape Architect": ["Landscape Design", "Urban Landscaping", "Park Design", "Environmental Restoration"],
+    "Safety Officer": ["Construction Safety", "Risk Assessment", "Safety Audits", "Emergency Planning"],
+    "Topo Surveyor": ["Topographic Mapping", "Digital Terrain Models", "GIS Surveys", "Contour Mapping"],
 };
 
 const ProffExperience = () => {
     const axiosInstance = useAxiosWithAuth(import.meta.env.VITE_SERVER_URL);
-    const { logout, user: contextUser } = useGlobalContext();
+    const { logout, user: contextUser, setUser } = useGlobalContext();
     const user = contextUser || (localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user") || "{}") : null);
-    const [specialization, setSpecialization] = useState("Architect");
+    // Read profession from user data (set during signup)
+    const userProfession = user?.userProfile?.profession || user?.profession || "";
+    const [specialization, setSpecialization] = useState(userProfession || "");
     // Prefilled fields
-    const [category, setCategory] = useState("Architect");
-    // const [specialization, setSpecialization] = useState("Structural Engineer");
-    const [level, setLevel] = useState("Professional");
-    const [experience, setExperience] = useState("10+ years");
+    const [category, setCategory] = useState(userProfession || "");
+    const [level, setLevel] = useState("");
+    const [experience, setExperience] = useState("");
     const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
 
     const [submitted, setSubmitted] = useState(false);
@@ -78,21 +123,72 @@ const ProffExperience = () => {
         return PROJECT_REQUIREMENTS[levelKey] ?? 0;
     }, [level]);
 
-    // Prefill mock projects
+    // Load projects from user-specific localStorage or start empty
     useEffect(() => {
-        const prefilledProjects: AttachmentRow[] = [
-            { id: 1, projectName: "Residential Complex", files: ["https://files.mock/jagedo/residential_plan.pdf"] },
-            { id: 2, projectName: "Bridge Construction", files: ["https://files.mock/jagedo/bridge_design.pdf"] },
-            { id: 3, projectName: "Office Building", files: ["https://files.mock/jagedo/office_blueprint.pdf"] },
-        ];
+        const userId = user?.id;
+        const storageKey = userId ? `professional_experience_${userId}` : "professional_experience";
 
-        while (prefilledProjects.length < 5) {
-            prefilledProjects.push({ id: prefilledProjects.length + 1, projectName: "", files: [] });
+        try {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                const profFallback = user?.userProfile?.profession || user?.profession || "";
+                setCategory(parsed.category || profFallback);
+                setSpecialization(parsed.specialization || "");
+                setLevel(parsed.level || "");
+                setExperience(parsed.experience || "");
+                if (parsed.attachments && parsed.attachments.length > 0) {
+                    setAttachments(parsed.attachments);
+                    setIsLoadingProfile(false);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load professional experience:", e);
         }
 
-        setAttachments(prefilledProjects);
+        // Start with empty project rows for new users
+        const emptyProjects: AttachmentRow[] = [];
+        for (let i = 1; i <= 5; i++) {
+            emptyProjects.push({ id: i, projectName: "", files: [] });
+        }
+
+        setAttachments(emptyProjects);
         setIsLoadingProfile(false);
-    }, []);
+    }, [user?.id]);
+
+    // Save to user-specific localStorage when data changes (auto-save for form fields only)
+    useEffect(() => {
+        const userId = user?.id;
+        if (!userId || isLoadingProfile) return;
+
+        const storageKey = `professional_experience_${userId}`;
+
+        // Convert File objects to serializable format for auto-save
+        const serializableAttachments = attachments.map(att => ({
+            ...att,
+            files: att.files.map(file => {
+                if (file instanceof File) {
+                    return {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        isFile: true,
+                    };
+                }
+                return file;
+            }),
+        }));
+
+        const dataToSave = {
+            category,
+            specialization,
+            level,
+            experience,
+            attachments: serializableAttachments,
+        };
+        localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+    }, [category, specialization, level, experience, attachments, user?.id, isLoadingProfile]);
 
     const updateExperienceOnServer = async (
         currentLevel: string,
@@ -139,7 +235,7 @@ const ProffExperience = () => {
         setAttachments((prev) => prev.map((item) => item.id === rowId ? { ...item, projectName: value } : item));
     };
 
-    const removeFile = async (rowId: number, fileIndex: number) => {
+    const removeFile = (rowId: number, fileIndex: number) => {
         const updatedAttachments = attachments.map((item) => {
             if (item.id === rowId) {
                 const newFiles = [...item.files];
@@ -149,42 +245,77 @@ const ProffExperience = () => {
             return item;
         });
 
-        try {
-            await toast.promise(
-                updateExperienceOnServer(level, experience, updatedAttachments),
-                {
-                    loading: 'Deleting file...',
-                    success: 'File deleted successfully!',
-                    error: (err: any) => err.response?.data?.message || 'Failed to delete file.',
-                }
-            );
-            setAttachments(updatedAttachments);
-        } catch (error) {
-            console.error("Delete Error:", error);
-        }
+        setAttachments(updatedAttachments);
+        toast.success('File removed successfully!');
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (isReadOnly) return toast.error("Your approved profile cannot be modified.");
         if (!level || !experience) return toast.error("Please select a Level and your Years of Experience.");
-        const providedProjects = attachments.slice(0, rowsToShow).filter(p => p.projectName.trim() !== "" && p.files.length > 0);
-        if (providedProjects.length < rowsToShow) return toast.error(`Please provide all ${rowsToShow} required projects.`);
+
+        // For student level, no projects required
+        if (rowsToShow > 0) {
+            const providedProjects = attachments.slice(0, rowsToShow).filter(p => p.projectName.trim() !== "" && p.files.length > 0);
+            if (providedProjects.length < rowsToShow) return toast.error(`Please provide all ${rowsToShow} required projects.`);
+        }
 
         setIsSubmitting(true);
         try {
-            await toast.promise(
-                updateExperienceOnServer(level, experience, attachments),
-                {
-                    loading: 'Submitting...',
-                    success: 'Experience updated successfully!',
-                    error: (err: any) => err.response?.data?.message || err.message || "Error occurred",
-                }
-            );
+            // Save to localStorage (mock mode)
+            const userId = user?.id;
+            const storageKey = userId ? `professional_experience_${userId}` : "professional_experience";
+
+            // Convert File objects to serializable format
+            const serializableAttachments = attachments.map(att => ({
+                ...att,
+                files: att.files.map(file => {
+                    if (file instanceof File) {
+                        return {
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            isFile: true,
+                        };
+                    }
+                    return file;
+                }),
+            }));
+
+            const dataToSave = {
+                category,
+                specialization,
+                level,
+                experience,
+                attachments: serializableAttachments,
+                timestamp: new Date().toISOString(),
+            };
+
+            localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+
+            // Update user context so sidebar status recalculates
+            setUser((prev: any) => ({
+                ...prev,
+                userProfile: {
+                    ...prev?.userProfile,
+                    profession: category,
+                    specialization,
+                    professionalLevel: level,
+                    yearsOfExperience: experience,
+                    professionalProjects: attachments.slice(0, rowsToShow).filter(a => a.projectName.trim() && a.files.length > 0).map(a => ({
+                        projectName: a.projectName,
+                        fileUrl: typeof a.files[0] === 'string' ? a.files[0] : a.files[0]?.name || '',
+                    })),
+                },
+            }));
+
+            window.dispatchEvent(new Event("storage"));
+
+            toast.success('Experience saved successfully!');
             setSubmitted(true);
-            logout();
         } catch (err) {
             console.error("Submission failed:", err);
+            toast.error("Failed to save experience");
         } finally {
             setIsSubmitting(false);
         }
@@ -202,36 +333,58 @@ const ProffExperience = () => {
                     {!submitted ? (
                         <form className="space-y-8" onSubmit={handleSubmit}>
                             {!isReadOnly && (
-                                <div className="bg-gray-50 p-4 md:p-6 rounded-xl border border-gray-200 space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-gray-50 p-4 md:p-6 rounded-xl border border-gray-200">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Category</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                                             <input type="text" value={category} readOnly className="w-full p-3 bg-gray-200 border rounded-lg" />
                                         </div>
-                                         <div>
-                            <label className="text-sm font-medium">Specialization</label>
-                            <select
-                                value={specialization}
-                                onChange={(e) => setSpecialization(e.target.value)}
-                                disabled={isReadOnly}
-                                className={inputStyles}
-                            >
-                                {SPECIALIZATIONS_BY_CATEGORY[category].map(spec => (
-                                    <option key={spec} value={spec}>
-                                        {spec}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Level</label>
-                                            <input type="text" value={level} readOnly className={inputStyles} />
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
+                                            <select
+                                                value={specialization}
+                                                onChange={(e) => setSpecialization(e.target.value)}
+                                                disabled={isReadOnly}
+                                                className={inputStyles}
+                                            >
+                                                {SPECIALIZATIONS_BY_CATEGORY[category]?.map(spec => (
+                                                    <option key={spec} value={spec}>
+                                                        {spec}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Years of Experience</label>
-                                            <input type="text" value={experience} readOnly className={inputStyles} />
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Level</label>
+                                            <select
+                                                value={level}
+                                                onChange={(e) => setLevel(e.target.value)}
+                                                disabled={isReadOnly}
+                                                className={inputStyles}
+                                            >
+                                                <option value="">Select level</option>
+                                                <option value="Senior">Senior</option>
+                                                <option value="Professional">Professional</option>
+                                                <option value="Graduate">Graduate</option>
+                                                <option value="Student">Student</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Years of Experience</label>
+                                            <select
+                                                value={experience}
+                                                onChange={(e) => setExperience(e.target.value)}
+                                                disabled={isReadOnly}
+                                                className={inputStyles}
+                                            >
+                                                <option value="">Select experience</option>
+                                                <option value="15+ years">15+ years</option>
+                                                <option value="10-15 years">10-15 years</option>
+                                                <option value="5-10 years">5-10 years</option>
+                                                <option value="3-5 years">3-5 years</option>
+                                                <option value="1-3 years">1-3 years</option>
+                                                <option value="Less than 1 year">Less than 1 year</option>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -258,7 +411,15 @@ const ProffExperience = () => {
                                                         <div className="space-y-2 mt-1 md:mt-0">
                                                             {row.files.map((file, index) => {
                                                                 const isUrl = typeof file === 'string';
-                                                                const fileName = isUrl ? new URL(file).pathname.split('/').pop() : file.name;
+                                                                const isFileObject = file instanceof File;
+                                                                const isSerializedFile = typeof file === 'object' && file !== null && 'isFile' in file;
+                                                                const fileName = isUrl
+                                                                    ? new URL(file).pathname.split('/').pop()
+                                                                    : isFileObject
+                                                                        ? file.name
+                                                                        : isSerializedFile
+                                                                            ? (file as any).name
+                                                                            : 'Unknown file';
                                                                 return (
                                                                     <div key={index} className="flex items-center justify-between gap-2 bg-gray-100 p-2 rounded-lg">
                                                                         <span className="text-sm text-gray-700 truncate" title={fileName}>{fileName}</span>
@@ -269,6 +430,17 @@ const ProffExperience = () => {
                                                                     </div>
                                                                 );
                                                             })}
+                                                            {!isReadOnly && row.files.length < 3 && (
+                                                                <input
+                                                                    type="file"
+                                                                    onChange={(e) => handleFileChange(row.id, e.target.files?.[0] || null)}
+                                                                    disabled={isSubmitting}
+                                                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition-colors cursor-pointer"
+                                                                />
+                                                            )}
+                                                            {!isReadOnly && row.files.length >= 3 && (
+                                                                <p className="text-xs text-gray-500">Maximum 3 files reached</p>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

@@ -65,6 +65,7 @@ function App() {
         <Routes>
           {generalRoutes}
           {adminRoutes}
+          
           {shopAppRoutes}
           {/* {queRoutes} */}
           {signupsRoutes}

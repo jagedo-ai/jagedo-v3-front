@@ -1,16 +1,17 @@
 import React from 'react';
-import { User, Home, Upload, Briefcase, Package, ArrowLeft } from 'lucide-react';
-
+import { User, Home, Upload, Briefcase, Package, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getAdminRole } from "@/config/adminRoles";
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   userType: string;
+  completionStatus?: { [key: string]: 'complete' | 'incomplete' };  // ← ADD THIS LINE
 }
 
 // Base navigation items for all users
 const baseNavigationItems = [
-  { id: 'account-info', label: 'Account Info', icon: User, color: 'text-blue-600' },
-  { id: 'address', label: 'Address', icon: Home, color: 'text-green-600' },
+  { id: 'account-info', label: 'Account Info', icon: User, color: 'text-blue-600', status: 'complete' },
+  { id: 'address', label: 'Address', icon: Home, color: 'text-green-600', status: 'complete' },
 ];
 
 // Experience (only for builders except hardware)
@@ -19,17 +20,19 @@ const experienceItem = {
   label: 'Experience',
   icon: Briefcase,
   color: 'text-orange-600',
+  status: 'incomplete',
 };
 
 // Account uploads (all users)
 const uploadsItem = {
   id: 'account-uploads',
-  label: 'Account Uploads',
+  label: 'Uploads',
   icon: Upload,
   color: 'text-purple-600',
+  status: 'incomplete',
 };
 
-// Products (builders & hardware)
+// Products (builders & hardware) — ❌ NO STATUS
 const productsItem = {
   id: 'products',
   label: 'Products',
@@ -37,57 +40,59 @@ const productsItem = {
   color: 'text-indigo-600',
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType, completionStatus = {} }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   // Determine which navigation items to show based on user type
   const getNavigationItems = () => {
-    // CUSTOMER: Account Info → Address → Account Uploads
     if (userType === 'CUSTOMER') {
-      return [
-        ...baseNavigationItems,
-        uploadsItem,
-      ];
+      return [...baseNavigationItems, uploadsItem];
     }
 
-    // HARDWARE: Account Info → Address → Account Uploads → Products
     if (userType === 'HARDWARE') {
-      return [
-        ...baseNavigationItems,
-        uploadsItem,
-        productsItem,
-      ];
+      return [...baseNavigationItems, uploadsItem, productsItem];
     }
 
-    // FUNDI / PROFESSIONAL / CONTRACTOR:
-    // Account Info → Address → Experience → Account Uploads → Products
-    return [
-      ...baseNavigationItems,
-      experienceItem,
-      uploadsItem,
-      productsItem,
-    ];
+    return [...baseNavigationItems, experienceItem, uploadsItem, productsItem];
   };
 
-  const navigationItems = getNavigationItems();
+  const navigationItems = getNavigationItems().filter(item => {
+    if (adminRole === "AGENT" && item.id === "address") return false;
+    return true;
+  });
 
   const getUserTypeLabel = () => {
     switch (userType) {
-      case 'FUNDI':
-        return 'Fundi Profile';
-      case 'PROFESSIONAL':
-        return 'Professional Profile';
-      case 'CONTRACTOR':
-        return 'Contractor Profile';
-      case 'HARDWARE':
-        return 'Hardware Provider Profile';
-      case 'CUSTOMER':
-        return 'Customer Profile';
-      default:
-        return 'User Profile';
+      case 'FUNDI': return 'Fundi Profile';
+      case 'PROFESSIONAL': return 'Professional Profile';
+      case 'CONTRACTOR': return 'Contractor Profile';
+      case 'HARDWARE': return 'Hardware Provider Profile';
+      case 'CUSTOMER': return 'Customer Profile';
+      default: return 'User Profile';
     }
   };
 
   const handleBackToDashboard = () => {
     window.location.href = `/dashboard/admin`;
+  };
+
+  const renderStatus = (status?: string) => {
+    if (!status) return null;
+
+    if (status === 'complete') {
+      return (
+        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+          complete ✓
+        </span>
+      );
+    }
+
+    return (
+      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200">
+        incomplete !
+      </span>
+    );
   };
 
   return (
@@ -132,6 +137,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType }) =
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
+            const status = completionStatus[item.id] || 'incomplete';
+            const isComplete = status === 'complete';
+            // Products section is optional - don't show status indicator
+            const isOptional = item.id === 'products';
 
             return (
               <li key={item.id}>
@@ -148,13 +157,36 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, userType }) =
                       isActive ? 'text-blue-600' : item.color
                     }`}
                   />
+
                   <span
-                    className={`font-medium ${
+                    className={`font-medium flex-1 ${
                       isActive ? 'text-blue-700' : 'text-gray-700'
                     }`}
                   >
                     {item.label}
+                    {isOptional && <span className="text-xs text-gray-400 ml-1">(Optional)</span>}
                   </span>
+
+             {!isOptional && (
+  // For experience and uploads: tick when complete, "Incomplete" text when not
+  (item.id === 'experience' || item.id === 'account-uploads') ? (
+    isComplete ? (
+      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+    ) : (
+      <span className="ml-auto text-xs font-semibold px-2 py-1 rounded-full text-red-700 bg-red-100">
+        Incomplete
+      </span>
+    )
+  ) : (
+    // For all other items, keep the original icons
+    isComplete ? (
+      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+    ) : (
+      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+    )
+  )
+)}
+
                 </button>
               </li>
             );

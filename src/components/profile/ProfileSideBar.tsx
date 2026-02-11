@@ -1,4 +1,5 @@
 //@ts-nocheck
+import { useState, useMemo, useEffect } from "react";
 import {
   Card,
   Typography,
@@ -15,10 +16,130 @@ import {
   FaArrowLeft,
   FaClock
 } from "react-icons/fa";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function ProfileSide({ activeComponent, setActiveComponent, user }) {
   const navigate = useNavigate();
+
+  // ✅ Force re-render when storage changes (status update fix)
+  const [rerender, setRerender] = useState(0);
+  
+  useEffect(() => {
+    const handleStorageChange = () => {
+      console.log('Storage event detected - updating status');
+      setRerender(prev => prev + 1); // Force re-calculate completionStatus
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('localStorageUpdate', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localStorageUpdate', handleStorageChange);
+    };
+  }, []);
+
+  // ✅ Calculate completion status for each section
+  const completionStatus = useMemo((): { [key: string]: 'complete' | 'incomplete' } => {
+    // rerender is a dependency so this recalculates when storage changes
+    console.log('Recalculating completion status', rerender);
+    
+    const userType = user?.userType?.toLowerCase() || '';
+
+    // Account Info and Address are always complete (filled during signup)
+    const defaultStatus: { [key: string]: 'complete' | 'incomplete' } = {
+      'Account Info': 'complete',
+      'Address': 'complete',
+      'Account Uploads': 'incomplete',
+      'Experience': 'incomplete',
+      'Products': 'incomplete',
+      'Activities': 'complete',
+    };
+
+    // Check Account Uploads completion
+    const getRequiredDocuments = () => {
+      const accountType = user?.accountType?.toLowerCase() || '';
+      if (accountType === 'individual' && userType === 'customer') {
+        return ['idFront', 'idBack', 'kraPIN'];
+      }
+      const docMap: any = {
+        customer: ['businessPermit', 'certificateOfIncorporation', 'kraPIN'],
+        fundi: ['idFront', 'idBack', 'certificate', 'kraPIN'],
+        professional: ['idFront', 'idBack', 'academicCertificate', 'cv', 'kraPIN', 'practiceLicense'],
+        contractor: ['businessRegistration', 'businessPermit', 'kraPIN', 'companyProfile'],
+        hardware: ['certificateOfIncorporation', 'kraPIN', 'singleBusinessPermit', 'companyProfile'],
+      };
+      return docMap[userType] || [];
+    };
+
+    const uploadedDocs = JSON.parse(localStorage.getItem(`uploads_demo_${user?.id}`) || '{}');
+    console.log('Uploaded docs:', uploadedDocs);
+    const requiredDocs = getRequiredDocuments();
+    
+    // Check if ALL required documents exist, have truthy values, and are not rejected/returned
+    const uploadsComplete = requiredDocs.length > 0 && requiredDocs.every(doc => {
+      const value = uploadedDocs[doc];
+      if (!value || value === '' || value === null || value === undefined) return false;
+      // If the document has a status field, check it's not rejected or returned
+      if (typeof value === 'object' && value.status) {
+        return value.status !== 'rejected' && value.status !== 'reupload_requested';
+      }
+      return true;
+    });
+    
+    console.log('Uploads complete:', uploadsComplete, 'Required:', requiredDocs, 'Uploaded:', uploadedDocs);
+
+    // Check Experience completion (userProfile first, then localStorage fallback)
+    let experienceComplete = false;
+    if (userType !== 'customer' && userType !== 'hardware') {
+      const profile = user?.userProfile || {};
+
+      if (userType === 'fundi') {
+        experienceComplete = !!(profile.grade && profile.experience && profile.previousJobPhotoUrls?.length > 0);
+        if (!experienceComplete) {
+          try {
+            const saved = localStorage.getItem(`fundi_experience_${user?.id}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              experienceComplete = !!parsed.grade && !!parsed.experience && parsed.attachments?.some((a: any) => a.projectName && a.files?.length > 0);
+            }
+          } catch { /* ignore */ }
+        }
+      } else if (userType === 'professional') {
+        experienceComplete = !!(profile.profession && profile.professionalLevel && profile.yearsOfExperience && profile.professionalProjects?.length > 0);
+        if (!experienceComplete) {
+          try {
+            const saved = localStorage.getItem(`professional_experience_${user?.id}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              experienceComplete = !!parsed.category && !!parsed.level && !!parsed.experience && parsed.attachments?.some((a: any) => a.projectName && a.files?.length > 0);
+            }
+          } catch { /* ignore */ }
+        }
+      } else if (userType === 'contractor') {
+        experienceComplete = !!(profile.contractorType && profile.licenseLevel && profile.contractorExperiences && profile.contractorProjects?.length > 0);
+        if (!experienceComplete) {
+          try {
+            const saved = localStorage.getItem(`contractorExperience_${user?.id}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              experienceComplete = parsed.categories?.length > 0 && parsed.categories.every((c: any) => c.category && c.categoryClass && c.yearsOfExperience);
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    } else {
+      experienceComplete = true;
+    }
+
+    return {
+      'Account Info': 'complete',
+      'Address': 'complete',
+      'Account Uploads': uploadsComplete ? 'complete' : 'incomplete',
+      'Experience': experienceComplete ? 'complete' : 'incomplete',
+      'Products': 'incomplete',
+      'Activities': 'complete',
+    };
+  }, [user?.id, user?.accountType, user?.userType, user?.userProfile, rerender]);
 
   const handleBack = () => {
     navigate(-1);
@@ -38,7 +159,7 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
     },
     {
       id: "Account Uploads",
-      label: "Account Uploads",
+      label: "Uploads",
       icon: <FaBoxes className="h-5 w-5 text-purple-600" />,
     },
   ];
@@ -63,6 +184,11 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
 
   const renderListItem = (item) => {
     const isActive = activeComponent === item.id;
+    const status = completionStatus[item.id] || 'incomplete';
+    const isComplete = status === 'complete';
+    // ✅ Don't show status for Activities and Products
+    const showStatus = item.id !== 'Activities' && item.id !== 'Products';
+    
     return (
       <ListItem
         key={item.id}
@@ -74,7 +200,28 @@ function ProfileSide({ activeComponent, setActiveComponent, user }) {
         }`}
       >
         <ListItemPrefix>{item.icon}</ListItemPrefix>
-        <span className="hidden sm:inline">{item.label}</span>
+        <span className="hidden sm:inline whitespace-nowrap">{item.label}</span>
+  {/* ✅ Status: tick icon for complete, "Incomplete" text for uploads/experience, icon for others */}
+{showStatus && (
+  <span className="hidden sm:inline ml-auto">
+    {(item.id === "Account Uploads" || item.id === "Experience") ? (
+      isComplete ? (
+        <CheckCircle2 className="h-5 w-5 text-green-600" />
+      ) : (
+        <span className="text-xs font-semibold px-2 py-1 rounded-full text-red-700 bg-red-100">
+          Incomplete
+        </span>
+      )
+    ) : (
+      isComplete ? (
+        <CheckCircle2 className="h-5 w-5 text-green-600" />
+      ) : (
+        <AlertCircle className="h-5 w-5 text-red-600" />
+      )
+    )}
+  </span>
+)}
+
       </ListItem>
     );
   };
