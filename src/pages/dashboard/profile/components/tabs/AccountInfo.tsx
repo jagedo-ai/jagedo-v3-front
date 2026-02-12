@@ -529,6 +529,17 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                     <span className={`text-sm font-semibold ${cfg.text}`}>
                       Status: {cfg.label}
                     </span>
+                    {/* Unverify button inline - visible when verified */}
+                    {isVerified && adminRole && (
+                      <button
+                        type="button"
+                        onClick={() => setPendingAction("unverify")}
+                        className="ml-auto flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-white border border-red-300 text-red-700 hover:bg-red-50 transition"
+                      >
+                        <ShieldOff className="w-4 h-4" />
+                        Unverify
+                      </button>
+                    )}
                     {/* Unverify button is in the Actions dropdown below */}
                   </div>
                 );
@@ -913,6 +924,8 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                 )}
               </div>
             </div>
+            {/* Actions Section - Always available for admin */}
+            {adminRole && (
             {/* Actions Section - Only for verified users */}
             {adminRole && isVerified && (
               <div className="mt-6 flex justify-between items-center flex-wrap gap-4">
