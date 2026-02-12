@@ -100,11 +100,13 @@ export default function Login() {
 
       if (!otpSent) {
         setIsLoading(true);
+        const phoneNumber = formData.email.replace(/\D/g, "");
+        
         try {
-          const phoneNumber = formData.email.replace(/\D/g, "");
 
+          const moddedPhoneNumber = phoneNumber.startsWith("254") ? phoneNumber : phoneNumber.startsWith('0') ? phoneNumber.replace("0", "254") : `254${phoneNumber}`
 
-          await phoneLogin({ phoneNumber });
+          await phoneLogin({ phoneNumber: moddedPhoneNumber });
 
           setOtpSent(true);
           setOtpTimer(120);
@@ -128,7 +130,9 @@ export default function Login() {
       try {
         const phoneNumber = formData.email.replace(/\D/g, "");
 
-        const response = await verifyOtpLogin({ phoneNumber, otp });
+        const moddedPhoneNumber = phoneNumber.startsWith("254") ? phoneNumber : phoneNumber.startsWith('0') ? phoneNumber.replace("0", "254") : `254${phoneNumber}`
+
+        const response = await verifyOtpLogin({ phoneNumber: moddedPhoneNumber, otp });
 
         completeLoginWithApiResponse(response);
       } catch (error) {
@@ -348,7 +352,8 @@ export default function Login() {
               onClick={async () => {
                 try {
                   const phoneNumber = formData.email.replace(/\D/g, "");
-                  await phoneLogin({ phoneNumber });
+                  const moddedPhoneNumber = phoneNumber.startsWith("254") ? phoneNumber : phoneNumber.startsWith('0') ? phoneNumber.replace("0", "254") : `254${phoneNumber}`
+                  await phoneLogin({ phoneNumber: moddedPhoneNumber });
                   setOtp("");
                   setOtpTimer(120);
                   toast.success("OTP resent successfully");
