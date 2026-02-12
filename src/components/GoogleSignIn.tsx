@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, Component, type ReactNode } from 'react';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import axios from "axios";
 import toast from 'react-hot-toast';
@@ -10,6 +10,32 @@ type TokenRequest = {
     clientId: string;
     token?: string;
 };
+
+// Error boundary to catch Google SDK errors
+class GoogleSignInErrorBoundary extends Component<
+    { children: ReactNode; fallback: ReactNode },
+    { hasError: boolean }
+> {
+    constructor(props: { children: ReactNode; fallback: ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error) {
+        console.warn('GoogleSignIn error caught:', error.message);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return this.props.fallback;
+        }
+        return this.props.children;
+    }
+}
 
 export default function GoogleSignIn() {
     const navigate = useNavigate();
@@ -71,16 +97,35 @@ export default function GoogleSignIn() {
 
     const handleError = () => toast.error('Google Sign-In failed');
 
-    return (
+    // Check if Google Client ID is configured
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+    if (!clientId) {
+        return (
+            <div className="w-full flex items-center justify-center">
+                <div className="text-gray-400 text-sm">Google Sign-In unavailable</div>
+            </div>
+        );
+    }
+
+    const fallbackUI = (
         <div className="w-full flex items-center justify-center">
-            <GoogleLogin
-                onSuccess={handleSuccess}
-                onError={handleError}
-                useOneTap={true}
-                nonce={nonce}
-                ux_mode="popup"
-                text="continue_with"
-            />
+            <div className="text-gray-400 text-sm">Google Sign-In unavailable</div>
         </div>
+    );
+
+    return (
+        <GoogleSignInErrorBoundary fallback={fallbackUI}>
+            <div className="w-full flex items-center justify-center">
+                <GoogleLogin
+                    onSuccess={handleSuccess}
+                    onError={handleError}
+                    useOneTap={false}
+                    nonce={nonce}
+                    ux_mode="popup"
+                    text="continue_with"
+                />
+            </div>
+        </GoogleSignInErrorBoundary>
     );
 }

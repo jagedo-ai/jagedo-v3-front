@@ -75,32 +75,34 @@ const Address = () => {
 useEffect(() => {
   if (!user) return;
 
-  const key = (user.username || user.email || "").split("@")[0];
+  const userId = user.id;
+  const storageKey = userId ? `address_${userId}` : "address";
+
   let stored = null;
   try {
-    const raw = localStorage.getItem("address");
+    const raw = localStorage.getItem(storageKey);
     if (raw && raw !== "undefined") {
       stored = JSON.parse(raw);
     }
   } catch {
-    localStorage.removeItem("address");
+    localStorage.removeItem(storageKey);
   }
 
   if (stored) {
     setAddress(stored);
     setProviderProfile(stored);
   } else {
-    // const mock = MOCK_ADDRESSES[key] || MOCK_ADDRESSES["lucy"];
-    const mock = MOCK_ADDRESSES[key] || {
+    // Use user data directly instead of mock addresses
+    const userAddress = {
       country: user.country || "",
       county: user.county || "",
       subCounty: user.subCounty || "",
-      estate: user.estate || user.town || "",
+      estate: user.estate || user.town || user.village || "",
     };
 
-    setAddress(mock);
-    setProviderProfile(mock);
-    localStorage.setItem("address", JSON.stringify(mock));
+    setAddress(userAddress);
+    setProviderProfile(userAddress);
+    localStorage.setItem(storageKey, JSON.stringify(userAddress));
   }
 
   setLoading(false);
@@ -179,7 +181,9 @@ const handleUpdate = () => {
   setUpdating(true);
 
   setTimeout(() => {
-    localStorage.setItem("address", JSON.stringify(address));
+    const userId = user?.id;
+    const storageKey = userId ? `address_${userId}` : "address";
+    localStorage.setItem(storageKey, JSON.stringify(address));
     setProviderProfile(address);
     setUpdateMessage({ type: "success", text: "Address updated successfully!" });
     setIsEditing(false);

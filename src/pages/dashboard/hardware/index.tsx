@@ -74,7 +74,7 @@ export default function HardwareDashboard() {
             } catch (err) {
                 console.error("Failed to fetch orders:", err);
                 setError("Failed to load orders. Please try again later.");
-                setOrders([]); // Clear any stale data on error
+                setOrderRequests([]); // Clear any stale data on error
             } finally {
                 setIsLoading(false);
             }

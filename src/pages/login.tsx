@@ -64,6 +64,33 @@ export default function Login() {
   });
 
   const [errors, setErrors] = useState({});
+  const [emailValidated, setEmailValidated] = useState(false);
+  
+  // ✅ Real-time validation for email/phone
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, email: value });
+    
+    if (!value) {
+      setErrors({ ...errors, email: "" });
+      setEmailValidated(false);
+      return;
+    }
+
+    const phone = value.replace(/\D/g, "");
+    const email = value.trim();
+    const isValidPhoneNum = isValidPhone(phone);
+    const isValidEmailFormat = isValidEmail(email);
+
+    if (isValidPhoneNum || isValidEmailFormat) {
+      setErrors({ ...errors, email: "" });
+      setEmailValidated(true);
+    } else {
+      setErrors({ ...errors, email: "Enter a valid phone number or email" });
+      setEmailValidated(false);
+    }
+  };
+
   useEffect(() => {
   if (!otpSent) return;
   if (otpTimer === 0) return;
@@ -135,6 +162,22 @@ const handleSubmit = (e) => {
 
     // STEP 1: SEND OTP
     if (!otpSent) {
+  const username = formData.email.trim();
+  // First check MOCK_USERS
+  let user = MOCK_USERS.find(
+    (u) => u.username === username
+  );
+  // If not found, check mock_users_db (new signups)
+  if (!user) {
+    const mockUsersDb = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
+    user = mockUsersDb.find(
+      (u) => u.email === username
+    );
+  }
+  if (!user) {
+    toast.error("User not found");
+    return;
+  }
   setOtpSent(true);      // show OTP input
   setOtpTimer(120);      // start 2-minute timer
   toast.success("OTP sent");
@@ -153,17 +196,23 @@ const handleSubmit = (e) => {
 // 1. Find user by email / username
 const username = formData.email.trim();
 
-const user = MOCK_USERS.find(
+// First check MOCK_USERS
+let user = MOCK_USERS.find(
   (u) => u.username === username
 );
 
+// If not found, check mock_users_db (new signups)
 if (!user) {
-  toast.error("User not found");
-  return;
+  const mockUsersDb = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
+  user = mockUsersDb.find(
+    (u) => u.email === username
+  );
 }
 
-// 2. Login using real user data
-completeLogin(user.username, user.password);
+// 2. Login using real user data - use email for new signups, username for mock users
+const loginUsername = user.username || user.email;
+const loginPassword = user.password;
+completeLogin(loginUsername, loginPassword);
 return;
 
   }
@@ -291,23 +340,58 @@ return;
 // };
 
 const completeLogin = (username, password) => {
-  const user = MOCK_USERS.find(
+  // First check hardcoded MOCK_USERS
+  let user = MOCK_USERS.find(
     (u) => u.username === username && u.password === password
   );
+
+  // If not found in MOCK_USERS, check mock_users_db localStorage (new signups)
+  if (!user) {
+    const mockUsersDb = JSON.parse(localStorage.getItem("mock_users_db") || "[]");
+    user = mockUsersDb.find(
+      (u) => u.email === username && u.password === password
+    );
+
+    // If found in mock_users_db, also get the full builder data
+    if (user) {
+      const builders = JSON.parse(localStorage.getItem("builders") || "[]");
+      const builderData = builders.find((b) => b.email === username || b.id === user.id);
+      if (builderData) {
+        // Merge builder data into user object
+        user = { ...user, ...builderData };
+      }
+    }
+  }
 
   if (!user) {
     toast.error("Invalid credentials");
     return;
   }
 
-  const key = username.split("@")[0]; 
-  const profile = MOCK_PROFILES[key];
+  // For MOCK_USERS, use MOCK_PROFILES; for new signups, skip profiles lookup
+  const key = username.split("@")[0];
+  const profile = MOCK_PROFILES[key] || null;
+
+  // Clear any previous user data to prevent data leaking between accounts
+  // Remove old shared localStorage keys that might have data from other users
+  localStorage.removeItem("profile");
+  localStorage.removeItem("address");
+  localStorage.removeItem("fundi_experience");
+  localStorage.removeItem("professional_experience");
+  localStorage.removeItem("docs-fundi");
+  localStorage.removeItem("docs-professional");
+  localStorage.removeItem("docs-contractor");
+  localStorage.removeItem("docs-customer");
+  localStorage.removeItem("docs-hardware");
+  localStorage.removeItem("contractor-categories");
+  localStorage.removeItem("contractor-category-docs");
+  localStorage.removeItem("showVerificationMessage");
 
   localStorage.setItem("user", JSON.stringify(user));
   if (profile) {
     localStorage.setItem("profile", JSON.stringify(profile));
   }
-  localStorage.setItem("token", "mock-token"); // 🔥 REQUIRED
+  localStorage.setItem("token", "mock-token");
 
   setUser({ ...user, profile });
   setIsLoggedIn(true);
@@ -370,6 +454,7 @@ const redirectUser = (user) => {
     setOtpSent(false);
     setOtp("");
     setErrors({});
+    setEmailValidated(false);
     setFormData({ email: "", password: "" });
   };
 
@@ -394,17 +479,20 @@ const redirectUser = (user) => {
         </p>
 
         <form className="space-y-5 w-full" onSubmit={handleSubmit}>
-          <Input
-            placeholder="Phone number or email"
-            value={formData.email}
-            disabled={isOtpFlow && otpSent}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-          />
-          {errors.email && (
-            <p className="text-red-500 text-sm">{errors.email}</p>
-          )}
+          <div>
+            <Input
+              placeholder="Phone number or email"
+              value={formData.email}
+              disabled={isOtpFlow && otpSent}
+              onChange={handleEmailChange}
+            />
+            {errors.email && (
+              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+            )}
+            {emailValidated && !errors.email && (
+              <p className="text-green-500 text-sm mt-1">✓ Valid input</p>
+            )}
+          </div>
 
           {isOtpFlow && otpSent && (
             <>
@@ -422,7 +510,7 @@ const redirectUser = (user) => {
           )}
 {isOtpFlow && otpSent && otpTimer > 0 && (
   <p className="text-sm text-gray-500">
-    Didn’t receive OTP? You can resend in{" "}
+    Didn't receive OTP? You can resend in{" "}
     {Math.floor(otpTimer / 60)}:
     {(otpTimer % 60).toString().padStart(2, "0")}
   </p>
@@ -514,7 +602,3 @@ const redirectUser = (user) => {
     </div>
   );
 }
-
-
-
-

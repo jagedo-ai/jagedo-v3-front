@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { getAdminRole } from "@/config/adminRoles";
 import { kenyanLocations } from "@/data/kenyaLocations";
 import {
   mockBuilders,
@@ -53,6 +54,10 @@ const getTypeColumnHeader = (type: UserType): string => {
 };
 
 export default function BuildersAdmin() {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+  const hideVerified = adminRole === "ASSOCIATE" || adminRole === "AGENT";
+
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [activeTab, setActiveTab] = useState<UserType>("FUNDI");
@@ -70,6 +75,27 @@ export default function BuildersAdmin() {
 
   const navigate = useNavigate();
 
+  // Enrich builders with address data from profile completion localStorage
+  const enrichWithAddress = (buildersList: Builder[]): Builder[] => {
+    return buildersList.map(builder => {
+      // Only enrich if county/subCounty are missing
+      if (builder.county && builder.subCounty) return builder;
+      try {
+        const addressKey = `address_${builder.id}`;
+        const addressStr = localStorage.getItem(addressKey);
+        if (addressStr) {
+          const address = JSON.parse(addressStr);
+          return {
+            ...builder,
+            county: builder.county || address.county || "",
+            subCounty: builder.subCounty || address.subCounty || "",
+          };
+        }
+      } catch { /* ignore */ }
+      return builder;
+    });
+  };
+
   // Load builders from localStorage, or initialize with mock data if empty
   useEffect(() => {
     setLoading(true);
@@ -80,21 +106,21 @@ export default function BuildersAdmin() {
         // Use existing data from localStorage (preserves user changes)
         const parsedBuilders = JSON.parse(stored);
         if (Array.isArray(parsedBuilders) && parsedBuilders.length > 0) {
-          setBuilders(parsedBuilders);
+          setBuilders(enrichWithAddress(parsedBuilders));
         } else {
           // Empty or invalid array - seed with mock data
           localStorage.setItem("builders", JSON.stringify(mockBuilders));
-          setBuilders(mockBuilders);
+          setBuilders(enrichWithAddress(mockBuilders));
         }
       } else {
         // No data exists - initialize with mock data (first time only)
         localStorage.setItem("builders", JSON.stringify(mockBuilders));
-        setBuilders(mockBuilders);
+        setBuilders(enrichWithAddress(mockBuilders));
       }
     } catch (err) {
       setError("Failed to load builders");
       // Fallback to mock data on error, but don't overwrite localStorage
-      setBuilders(mockBuilders);
+      setBuilders(enrichWithAddress(mockBuilders));
     } finally {
       setLoading(false);
     }
@@ -106,7 +132,7 @@ export default function BuildersAdmin() {
       try {
         const stored = JSON.parse(localStorage.getItem("builders") || "null");
         if (stored && Array.isArray(stored) && stored.length > 0) {
-          setBuilders(stored);
+          setBuilders(enrichWithAddress(stored));
         }
       } catch (err) {
         console.error("Failed to refresh builders:", err);
@@ -119,6 +145,11 @@ export default function BuildersAdmin() {
 
   const filteredBuilders = builders.filter((builder) => {
     const matchesTab = builder.userType === activeTab;
+
+    // Hide verified users from Associate and Agent roles
+    const status = resolveStatus(builder);
+    if (hideVerified && status === "VERIFIED") return false;
+
     const matchesName =
       !filters.name ||
       builder.firstName?.toLowerCase().includes(filters.name.toLowerCase()) ||
@@ -128,7 +159,6 @@ export default function BuildersAdmin() {
     const matchesCounty =
       !filters.county || builder.county?.toLowerCase() === filters.county.toLowerCase();
 
-    const status = resolveStatus(builder);
     const matchesVerificationStatus =
       !filters.verificationStatus ||
       STATUS_LABELS[status] === filters.verificationStatus;
@@ -175,7 +205,11 @@ export default function BuildersAdmin() {
           {/* Navigation tabs */}
           <div className="flex flex-nowrap gap-2 w-full overflow-x-auto md:overflow-visible">
             {navItems.map((nav) => {
-              const count = builders.filter((b) => b.userType === nav.name).length;
+              const count = builders.filter((b) => {
+                if (b.userType !== nav.name) return false;
+                if (hideVerified && resolveStatus(b) === "VERIFIED") return false;
+                return true;
+              }).length;
               return (
                 <Button
                   key={nav.name}

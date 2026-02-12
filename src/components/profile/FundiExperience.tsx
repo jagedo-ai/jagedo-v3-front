@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { XMarkIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { useGlobalContext } from "@/context/GlobalProvider";
+
 
 interface FundiAttachment {
   id: number;
@@ -10,19 +12,51 @@ interface FundiAttachment {
   files: string[];
 }
 
-const STORAGE_KEY = "fundi_experience";
-
-const saveToStorage = (data: any) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+// Helper to get user-specific storage key
+const getStorageKey = (userId: string | number | undefined) => {
+  return userId ? `fundi_experience_${userId}` : "fundi_experience";
 };
 
-const loadFromStorage = () => {
+const saveToStorage = (data: any, userId: string | number | undefined) => {
+  localStorage.setItem(getStorageKey(userId), JSON.stringify(data));
+};
+
+const loadFromStorage = (userId: string | number | undefined) => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey(userId));
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
+};
+
+// Mapping from signup slugs to display names
+const SKILL_SLUG_TO_DISPLAY: Record<string, string> = {
+  "carpenter": "Carpenter",
+  "electrician": "Electrician",
+  "fitter": "Fitter",
+  "foreman": "Foreman",
+  "glass-aluminium-fitter": "Glass/Aluminium Fitter",
+  "interior-skimmer": "Interior Skimmer",
+  "mason": "Mason",
+  "painter": "Painter",
+  "plumber": "Plumber",
+  "roofer": "Roofer",
+  "steel-fixer": "Steel Fixer",
+  "tile-fixer": "Tile Fixer",
+  "welder": "Welder",
+};
+
+// Resolve a skill slug or display name to a friendly display name
+const resolveSkillName = (raw: string): string => {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (SKILL_SLUG_TO_DISPLAY[trimmed]) return SKILL_SLUG_TO_DISPLAY[trimmed];
+  // Already a display name or unknown — title-case as fallback
+  if (trimmed.includes("-")) {
+    return trimmed.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  }
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 };
 
 
@@ -44,33 +78,55 @@ const fundiSpecializations = [
   "Solar Water Systems",
 ];
 
-const prefilledAttachments: FundiAttachment[] = [
-  { id: 1, projectName: "Central Mall Renovation", files: [] },
-  { id: 2, projectName: "River Bridge Construction", files: [] },
-  { id: 3, projectName: "School Classroom Setup", files: [] },
+const emptyAttachments: FundiAttachment[] = [
+  { id: 1, projectName: "", files: [] },
+  { id: 2, projectName: "", files: [] },
+  { id: 3, projectName: "", files: [] },
 ];
 
 const FundiExperience = () => {
+  const { user, setUser } = useGlobalContext();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  const [attachments, setAttachments] = useState<FundiAttachment[]>(prefilledAttachments);
-  const [grade, setGrade] = useState("G1: Master Fundi");
-  const [experience, setExperience] = useState("10+ years");
-  const [visibleProjectRows, setVisibleProjectRows] = useState(requiredProjectsByGrade[grade]);
+  const [attachments, setAttachments] = useState<FundiAttachment[]>([...emptyAttachments]);
+  const [grade, setGrade] = useState("");
+  const [experience, setExperience] = useState("");
+  const [visibleProjectRows, setVisibleProjectRows] = useState(0);
   const [specialization, setSpecialization] = useState("");
+  const [skill, setSkill] = useState("");
 
   const isReadOnly = false;
+  const userId = user?.id;
 
-useEffect(() => {
-  const saved = loadFromStorage();
-  if (saved) {
-    setGrade(saved.grade ?? "G1: Master Fundi");
-    setExperience(saved.experience ?? "10+ years");
-    setSpecialization(saved.specialization ?? "");
-    setAttachments(saved.attachments ?? prefilledAttachments);
-  }
-  setIsLoadingProfile(false);
-}, []);
+  useEffect(() => {
+    if (!userId) {
+      setIsLoadingProfile(false);
+      return;
+    }
+
+    // First try to load from localStorage
+    const saved = loadFromStorage(userId);
+    if (saved) {
+      setGrade(saved.grade ?? "");
+      setExperience(saved.experience ?? "");
+      setSpecialization(saved.specialization ?? "");
+      setSkill(resolveSkillName(saved.skill ?? user?.userProfile?.skill ?? user?.skills ?? ""));
+      setAttachments(saved.attachments ?? [...emptyAttachments]);
+    } else {
+      // Fallback to user object data if no localStorage data
+      const userProfile = user?.userProfile;
+      if (userProfile) {
+        setGrade(userProfile.grade ?? "");
+        setExperience(userProfile.experience ?? "");
+        setSpecialization(userProfile.specialization ?? "");
+      }
+      setSkill(resolveSkillName(user?.userProfile?.skill ?? user?.skills ?? ""));
+      setAttachments([...emptyAttachments]);
+    }
+
+    setIsLoadingProfile(false);
+  }, [userId, user]);
 
 
   useEffect(() => {
@@ -78,8 +134,11 @@ useEffect(() => {
   }, [grade]);
 
   useEffect(() => {
-    saveToStorage({ grade, experience, specialization, attachments });
-  }, [grade, experience, specialization, attachments]);
+    // Only save if we have a user ID to prevent saving to shared key
+    if (userId && !isLoadingProfile) {
+      saveToStorage({ grade, experience, specialization, skill, attachments }, userId);
+    }
+  }, [grade, experience, specialization, skill, attachments, userId, isLoadingProfile]);
 
   const handleFileChange = (rowId: number, file: File | null) => {
     if (!file) return;
@@ -122,9 +181,25 @@ useEffect(() => {
       return toast.error(`Please add ${required} complete project(s).`);
     }
 
-    saveToStorage({ grade, experience, specialization, attachments });
-    toast.success("Experience saved locally!");
+    saveToStorage({ grade, experience, specialization, skill, attachments }, userId);
+
+    setUser((prev: any) => ({
+      ...prev,
+      userProfile: {
+        ...prev.userProfile,
+        grade,
+        experience,
+        specialization,
+        skill,
+        previousJobPhotoUrls: attachments.flatMap(a => a.files),
+      },
+    }));
+
+    window.dispatchEvent(new Event("storage"));
+
+    toast.success("Experience saved!");
     setIsSubmitting(false);
+
   };
 
   if (isLoadingProfile) return <div className="p-8 text-center">Loading...</div>;
@@ -136,12 +211,12 @@ useEffect(() => {
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <h1 className="text-4xl font-bold mb-8">Fundi Experience</h1>
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm">
-  <p className="font-semibold mb-1">Next Steps</p>
-  <ul className="list-disc pl-5 space-y-1">
-    <li>You will attend a <strong>15-minute interview</strong> after submission.</li>
-    <li>Verification typically takes between <strong>7 to 14 days</strong> based on your work review.</li>
-  </ul>
-</div>
+          <p className="font-semibold mb-1">Next Steps</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>You will attend a <strong>15-minute interview</strong> after submission.</li>
+            <li>Verification typically takes between <strong>7 to 14 days</strong> based on your work review.</li>
+          </ul>
+        </div>
 
 
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -149,7 +224,7 @@ useEffect(() => {
             <div className="grid md:grid-cols-4 gap-6">
               <div>
                 <label>Skill</label>
-                <input value="Plumber" readOnly className="w-full p-3 bg-gray-200 rounded-lg" />
+                <input value={skill || "Not specified"} readOnly className="w-full p-3 bg-gray-200 rounded-lg" />
               </div>
 
               <div>
@@ -165,8 +240,9 @@ useEffect(() => {
               <div>
                 <label>Grade</label>
                 <select value={grade} onChange={e => setGrade(e.target.value)} className={inputStyles}>
+                  <option value="">Select Grade</option>
                   {Object.keys(requiredProjectsByGrade).map(g => (
-                    <option key={g}>{g}</option>
+                    <option key={g} value={g}>{g}</option>
                   ))}
                 </select>
               </div>
@@ -174,8 +250,9 @@ useEffect(() => {
               <div>
                 <label>Experience</label>
                 <select value={experience} onChange={e => setExperience(e.target.value)} className={inputStyles}>
+                  <option value="">Select Experience</option>
                   {["10+ years", "5-10 years", "3-5 years", "1-3 years"].map(exp => (
-                    <option key={exp}>{exp}</option>
+                    <option key={exp} value={exp}>{exp}</option>
                   ))}
                 </select>
               </div>
@@ -212,9 +289,11 @@ useEffect(() => {
             </tbody>
           </table>
 
-          <button disabled={isSubmitting} className="bg-blue-700 text-white px-6 py-3 rounded">
-            Save Experience
-          </button>
+          <div className="flex justify-end">
+            <button disabled={isSubmitting} className="bg-blue-700 text-white px-6 py-3 rounded">
+              Save
+            </button>
+          </div>
         </form>
       </div>
     </div>

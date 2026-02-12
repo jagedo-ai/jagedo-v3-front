@@ -2,7 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useEffect } from "react";
 import { FiEdit, FiCheck, FiX, FiChevronDown } from "react-icons/fi";
-import { Star } from "lucide-react";
+import { Star, ShieldOff, Ban, AlertTriangle, Trash2, Clock } from "lucide-react";
+import { toast, Toaster } from "sonner";
+import { getAdminRole } from "@/config/adminRoles";
 
 interface AccountInfoProps {
   userData: any;
@@ -65,6 +67,9 @@ const updateUserInLocalStorage = (
 };
 
 const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
+  const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const adminRole = getAdminRole(loggedInUser);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [askDeleteReason, setAskDeleteReason] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
@@ -73,7 +78,21 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionReason, setActionReason] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const showVerificationMessage = userData.adminApproved;
+
+  // Reactive status state
+  const [isVerified, setIsVerified] = useState(!!userData?.adminApproved);
+  const [isSuspended, setIsSuspended] = useState(!!userData?.suspended);
+  const [isBlacklisted, setIsBlacklisted] = useState(!!userData?.blacklisted);
+  const [isDeleted, setIsDeleted] = useState(false);
+
+  // Sync status when userData changes
+  useEffect(() => {
+    setIsVerified(!!userData?.adminApproved);
+    setIsSuspended(!!userData?.suspended);
+    setIsBlacklisted(!!userData?.blacklisted);
+  }, [userData?.adminApproved, userData?.suspended, userData?.blacklisted]);
+
+  const showVerificationMessage = isVerified;
   const [avatarSrc, setAvatarSrc] = useState(
     userData?.userProfile?.profileImage,
   );
@@ -97,50 +116,47 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
   // --- Load persisted image from localStorage on component mount ---
   useEffect(() => {
     try {
+      const matchId = (a: any, b: any) => String(a) === String(b);
       // Try loading from users array first
       let image = null;
-      
+
       const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-      const foundUser = storedUsers.find((u: any) => u.id === userData.id);
+      const foundUser = storedUsers.find((u: any) => matchId(u.id, userData.id));
       if (foundUser?.userProfile?.profileImage) {
         image = foundUser.userProfile.profileImage;
-        console.log("✅ Image loaded from users array");
       }
-      
+
       // If not found, try builders array
       if (!image) {
         const storedBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
-        const foundBuilder = storedBuilders.find((b: any) => b.id === userData.id);
+        const foundBuilder = storedBuilders.find((b: any) => matchId(b.id, userData.id));
         if (foundBuilder?.userProfile?.profileImage) {
           image = foundBuilder.userProfile.profileImage;
-          console.log("✅ Image loaded from builders array");
         }
       }
-      
+
+      // If not found, try customers array
+      if (!image) {
+        const storedCustomers = JSON.parse(localStorage.getItem("customers") || "[]");
+        const foundCustomer = storedCustomers.find((c: any) => matchId(c.id, userData.id));
+        if (foundCustomer?.userProfile?.profileImage) {
+          image = foundCustomer.userProfile.profileImage;
+        }
+      }
+
       // If not found, try user key
       if (!image) {
         const singleUser = JSON.parse(localStorage.getItem("user") || "null");
-        if (singleUser?.id === userData.id && singleUser?.userProfile?.profileImage) {
+        if (singleUser && matchId(singleUser.id, userData.id) && singleUser?.userProfile?.profileImage) {
           image = singleUser.userProfile.profileImage;
-          console.log("✅ Image loaded from user key");
         }
       }
-      
-      // If not found, try profile key
-      if (!image) {
-        const profileData = JSON.parse(localStorage.getItem("profile") || "null");
-        if (profileData?.id === userData.id && profileData?.userProfile?.profileImage) {
-          image = profileData.userProfile.profileImage;
-          console.log("✅ Image loaded from profile key");
-        }
-      }
-      
+
       // If still not found, use passed prop
       if (!image && userData?.userProfile?.profileImage) {
         image = userData.userProfile.profileImage;
-        console.log("✅ Image loaded from userData prop");
       }
-      
+
       if (image) {
         setAvatarSrc(image);
       }
@@ -160,14 +176,14 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
       // Check file size (max 5MB)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
-        alert("Image size must be less than 5MB");
+        toast.error("Image size must be less than 5MB");
         event.target.value = ""; // Reset input
         return;
       }
 
       // Check file type
       if (!file.type.startsWith("image/")) {
-        alert("Please upload an image file");
+        toast.error("Please upload an image file");
         event.target.value = ""; // Reset input
         return;
       }
@@ -189,8 +205,10 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
         // Persist to all localStorage keys
         try {
           // Update "users" array
+          const imgMatchId = (a: any, b: any) => String(a) === String(b);
+
           const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-          const userIdx = storedUsers.findIndex((u: any) => u.id === userData.id);
+          const userIdx = storedUsers.findIndex((u: any) => imgMatchId(u.id, userData.id));
           if (userIdx !== -1) {
             storedUsers[userIdx] = deepMerge(storedUsers[userIdx], {
               userProfile: {
@@ -199,12 +217,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               },
             });
             localStorage.setItem("users", JSON.stringify(storedUsers));
-            console.log("✅ Image saved to users array");
           }
 
           // Update "builders" array
           const storedBuilders = JSON.parse(localStorage.getItem("builders") || "[]");
-          const builderIdx = storedBuilders.findIndex((b: any) => b.id === userData.id);
+          const builderIdx = storedBuilders.findIndex((b: any) => imgMatchId(b.id, userData.id));
           if (builderIdx !== -1) {
             storedBuilders[builderIdx] = deepMerge(storedBuilders[builderIdx], {
               userProfile: {
@@ -213,12 +230,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               },
             });
             localStorage.setItem("builders", JSON.stringify(storedBuilders));
-            console.log("✅ Image saved to builders array");
           }
 
           // Update single "user" key
           const singleUser = JSON.parse(localStorage.getItem("user") || "null");
-          if (singleUser && singleUser.id === userData.id) {
+          if (singleUser && imgMatchId(singleUser.id, userData.id)) {
             const updated = deepMerge(singleUser, {
               userProfile: {
                 ...(singleUser.userProfile || {}),
@@ -226,25 +242,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               },
             });
             localStorage.setItem("user", JSON.stringify(updated));
-            console.log("✅ Image saved to user key");
-          }
-
-          // Update profile key (if exists)
-          const profileData = JSON.parse(localStorage.getItem("profile") || "null");
-          if (profileData && profileData.id === userData.id) {
-            const updated = deepMerge(profileData, {
-              userProfile: {
-                ...(profileData.userProfile || {}),
-                profileImage: base64String,
-              },
-            });
-            localStorage.setItem("profile", JSON.stringify(updated));
-            console.log("✅ Image saved to profile key");
           }
 
           // Update customers array if exists
           const storedCustomers = JSON.parse(localStorage.getItem("customers") || "[]");
-          const customerIdx = storedCustomers.findIndex((c: any) => c.id === userData.id);
+          const customerIdx = storedCustomers.findIndex((c: any) => imgMatchId(c.id, userData.id));
           if (customerIdx !== -1) {
             storedCustomers[customerIdx] = deepMerge(storedCustomers[customerIdx], {
               userProfile: {
@@ -253,19 +255,18 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               },
             });
             localStorage.setItem("customers", JSON.stringify(storedCustomers));
-            console.log("✅ Image saved to customers array");
           }
 
           event.target.value = ""; // Reset input
-          alert("Image uploaded successfully and persisted!");
+          toast.success("Image uploaded successfully!");
         } catch (err) {
           console.error("Error persisting image:", err);
-          alert("Image uploaded but failed to persist. Please try again.");
+          toast.error("Image uploaded but failed to persist. Please try again.");
           event.target.value = ""; // Reset input
         }
       };
       reader.onerror = () => {
-        alert("Failed to read image file");
+        toast.error("Failed to read image file");
         event.target.value = ""; // Reset input
       };
       reader.readAsDataURL(file); // Convert file to Base64
@@ -283,12 +284,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
 
   const handleSubmitReason = () => {
     if (deleteReason.trim()) {
-      // Replace with actual delete logic
-      alert(`Deleted for reason: ${deleteReason}`);
+      handleDeleteUser(deleteReason);
       setAskDeleteReason(false);
       setDeleteReason("");
     } else {
-      alert("Please enter a reason.");
+      toast.error("Please enter a reason for deletion.");
     }
   };
 
@@ -321,9 +321,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
   // --- localStorage-based edit save ---
   const handleEditSave = (field: string) => {
     if (!editValues[field]?.trim()) {
-      alert(
-        `${field.charAt(0).toUpperCase() + field.slice(1)} cannot be empty`,
-      );
+      toast.error(`${field.charAt(0).toUpperCase() + field.slice(1)} cannot be empty`);
       return;
     }
 
@@ -332,7 +330,6 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
       const updates: Record<string, any> = {};
       switch (field) {
         case "name": {
-          // For organizations, update organizationName; for individuals, update firstName/lastName
           if (isOrganization) {
             updates.organizationName = editValues.name.trim();
           } else {
@@ -352,18 +349,14 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
           throw new Error("Invalid field");
       }
 
-      // Update userData in-place for the current render
       Object.assign(userData, updates);
-      // Persist to localStorage
       updateUserInLocalStorage(userData.id, updates);
 
       setEditingField(null);
-      alert(
-        `${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully!`,
-      );
+      toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully!`);
     } catch (error: any) {
       console.error(`Failed to update ${field}:`, error);
-      alert(error.message || `Failed to update ${field}`);
+      toast.error(error.message || `Failed to update ${field}`);
     } finally {
       setIsUpdating(false);
     }
@@ -377,13 +370,17 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
       blacklistDate: new Date().toISOString()
     });
     Object.assign(userData, { blacklisted: true, blacklistReason: reason });
-    alert("User blacklisted successfully");
+    setIsBlacklisted(true);
+    toast.success("User has been blacklisted.");
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleWhiteList = () => {
-    updateUserInLocalStorage(userData.id, { blacklisted: false });
-    Object.assign(userData, { blacklisted: false });
-    alert("User whitelisted successfully");
+    updateUserInLocalStorage(userData.id, { blacklisted: false, blacklistReason: "" });
+    Object.assign(userData, { blacklisted: false, blacklistReason: "" });
+    setIsBlacklisted(false);
+    toast.success("User has been removed from blacklist.");
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleSuspend = (reason: string) => {
@@ -393,24 +390,62 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
       suspendDate: new Date().toISOString()
     });
     Object.assign(userData, { suspended: true, suspendReason: reason });
-    alert("User suspended successfully");
+    setIsSuspended(true);
+    toast.success("User has been suspended.");
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleUnsuspend = () => {
+    updateUserInLocalStorage(userData.id, { suspended: false, suspendReason: "" });
+    Object.assign(userData, { suspended: false, suspendReason: "" });
+    setIsSuspended(false);
+    toast.success("User suspension has been lifted.");
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleUnverifyUser = (reason: string) => {
     updateUserInLocalStorage(userData.id, {
       adminApproved: false,
       approved: false,
+      status: "PENDING",
       unverifyReason: reason,
       unverifyDate: new Date().toISOString()
     });
-    Object.assign(userData, { adminApproved: false, approved: false, unverifyReason: reason });
-    alert("User unverified successfully");
+    Object.assign(userData, { adminApproved: false, approved: false, status: "PENDING", unverifyReason: reason });
+    setIsVerified(false);
+    toast.success("User has been unverified.");
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const handleDeleteUser = (reason: string) => {
+    try {
+      // Remove from all localStorage arrays
+      const storageKeys = ["users", "builders", "customers"];
+      storageKeys.forEach(key => {
+        const stored = JSON.parse(localStorage.getItem(key) || "[]");
+        const filtered = stored.filter((u: any) => u.id !== userData.id && u.id !== Number(userData.id) && u.id !== String(userData.id));
+        localStorage.setItem(key, JSON.stringify(filtered));
+      });
+
+      // Remove user-specific data
+      localStorage.removeItem(`uploads_demo_${userData.id}`);
+      localStorage.removeItem(`fundi_experience_${userData.id}`);
+      localStorage.removeItem(`professional_experience_${userData.id}`);
+      localStorage.removeItem(`contractorExperience_${userData.id}`);
+
+      setIsDeleted(true);
+      toast.success("User has been deleted successfully.");
+      window.dispatchEvent(new Event('storage'));
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      toast.error("Failed to delete user.");
+    }
   };
 
   // Handle action with reason submission
   const handleActionSubmit = () => {
     if (!actionReason.trim()) {
-      alert("Please enter a reason for this action.");
+      toast.error("Please enter a reason for this action.");
       return;
     }
 
@@ -439,8 +474,20 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
     }
   };
 
+  if (isDeleted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+        <Toaster position="top-center" richColors />
+        <Trash2 className="w-16 h-16 text-red-400 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">User Deleted</h2>
+        <p className="text-gray-500">This user account has been permanently removed.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
+      <Toaster position="top-center" richColors />
       {/* <ProfileNavBarVerification /> */}
       <div className="flex-1 overflow-y-auto bg-white">
         <div className="w-full px-4">
@@ -449,20 +496,55 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
               <h1 className="text-2xl md:text-3xl font-bold mb-6">
                 Account Info
               </h1>
-              {showVerificationMessage && (
-                <div className="flex items-center space-x-1 mb-4">
-                  {[...Array(5)].map((_, index) => (
-                    <Star
-                      key={index}
-                      className="text-yellow-400 w-5 h-5"
-                      fill="currentColor"
-                    />
-                  ))}
-                  <span className="text-sm text-green-600 font-medium ml-2">
-                    Verified
-                  </span>
-                </div>
-              )}
+
+              {/* User Status Banner */}
+              {(() => {
+                const status = userData?.status || (isVerified ? "VERIFIED" : "PENDING");
+                const statusConfig: Record<string, { bg: string; border: string; text: string; label: string }> = {
+                  VERIFIED: { bg: "bg-green-50", border: "border-green-300", text: "text-green-800", label: "Verified" },
+                  PENDING: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-800", label: "Pending Verification" },
+                  RETURNED: { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-800", label: "Documents Returned" },
+                  REJECTED: { bg: "bg-red-50", border: "border-red-300", text: "text-red-800", label: "Rejected" },
+                  PARTIALLY_VERIFIED: { bg: "bg-indigo-50", border: "border-indigo-300", text: "text-indigo-800", label: "Partially Verified" },
+                  SUSPENDED: { bg: "bg-orange-50", border: "border-orange-300", text: "text-orange-800", label: "Suspended" },
+                  BLACKLISTED: { bg: "bg-red-50", border: "border-red-300", text: "text-red-800", label: "Blacklisted" },
+                };
+                const effectiveStatus = isSuspended ? "SUSPENDED" : isBlacklisted ? "BLACKLISTED" : status;
+                const cfg = statusConfig[effectiveStatus] || statusConfig.PENDING;
+                return (
+                  <div className={`flex items-center gap-3 mb-4 p-3 rounded-lg border ${cfg.bg} ${cfg.border}`}>
+                    {effectiveStatus === "VERIFIED" && (
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="text-yellow-400 w-4 h-4" fill="currentColor" />
+                        ))}
+                      </div>
+                    )}
+                    {effectiveStatus === "SUSPENDED" && <AlertTriangle className="w-5 h-5 text-orange-600" />}
+                    {effectiveStatus === "BLACKLISTED" && <Ban className="w-5 h-5 text-red-600" />}
+                    {effectiveStatus === "PENDING" && <Clock className="w-5 h-5 text-amber-600" />}
+                    {effectiveStatus === "RETURNED" && <ShieldOff className="w-5 h-5 text-blue-600" />}
+                    {effectiveStatus === "REJECTED" && <Ban className="w-5 h-5 text-red-600" />}
+                    {effectiveStatus === "PARTIALLY_VERIFIED" && <AlertTriangle className="w-5 h-5 text-indigo-600" />}
+                    <span className={`text-sm font-semibold ${cfg.text}`}>
+                      Status: {cfg.label}
+                    </span>
+                    {/* Unverify button inline - visible when verified */}
+                    {isVerified && adminRole && (
+                      <button
+                        type="button"
+                        onClick={() => setPendingAction("unverify")}
+                        className="ml-auto flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-white border border-red-300 text-red-700 hover:bg-red-50 transition"
+                      >
+                        <ShieldOff className="w-4 h-4" />
+                        Unverify
+                      </button>
+                    )}
+                    {/* Unverify button is in the Actions dropdown below */}
+                  </div>
+                );
+              })()}
+
               <div className="flex flex-col items-start mb-6">
                 <img
                   alt="avatar"
@@ -604,6 +686,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                       </div>
                     </div>
 
+                    {adminRole !== "AGENT" && (
                     <div className="space-y-2">
                       <label className="block text-sm font-medium">Email</label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
@@ -658,6 +741,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                         )}
                       </div>
                     </div>
+                    )}
                   </div>
                 )}
 
@@ -722,7 +806,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                     </div>
                     <div className="space-y-2">
                       <label className="block text-sm font-medium">
-                        Phone Numberertt
+                        Phone Number
                       </label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
                         {editingField === "phoneNumber" ? (
@@ -778,6 +862,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                         )}
                       </div>
                     </div>
+                    {adminRole !== "AGENT" && (
                     <div className="space-y-2">
                       <label className="block text-sm font-medium">Email</label>
                       <div className="flex items-center border-b focus-within:border-blue-900 transition">
@@ -834,13 +919,17 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                         )}
                       </div>
                     </div>
+                    )}
                   </form>
                 )}
               </div>
             </div>
-            {showVerificationMessage && (
+            {/* Actions Section - Always available for admin */}
+            {adminRole && (
+            {/* Actions Section - Only for verified users */}
+            {adminRole && isVerified && (
               <div className="mt-6 flex justify-between items-center flex-wrap gap-4">
-                {/* Actions button aligned to start */}
+                {/* Actions dropdown */}
                 <div className="relative">
                   <button
                     type="button"
@@ -854,46 +943,83 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userData }) => {
                     />
                   </button>
                   {showActionDropdown && (
-                    <div className="absolute left-0 mt-2 w-44 bg-white border rounded shadow-lg z-50">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingAction("unverify");
-                          setShowActionDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        Unverify
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingAction("suspend");
-                          setShowActionDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        Suspend
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingAction("blacklist");
-                          setShowActionDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
-                      >
-                        Blacklist
-                      </button>
+                    <div className="absolute left-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
+                      {/* Unverify - only if currently verified */}
+                      {isVerified && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingAction("unverify");
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
+                        >
+                          <ShieldOff className="w-4 h-4" />
+                          Unverify
+                        </button>
+                      )}
+                      {/* Suspend / Unsuspend */}
+                      {isSuspended ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleUnsuspend();
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-green-600"
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                          Unsuspend
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingAction("suspend");
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-orange-600"
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                          Suspend
+                        </button>
+                      )}
+                      {/* Blacklist / Remove from Blacklist */}
+                      {isBlacklisted ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleWhiteList();
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-green-600"
+                        >
+                          <Ban className="w-4 h-4" />
+                          Remove Blacklist
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingAction("blacklist");
+                            setShowActionDropdown(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                        >
+                          <Ban className="w-4 h-4" />
+                          Blacklist
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
-                {/* Delete button aligned to end */}
+                {/* Delete button */}
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 transition"
+                  className="flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 transition"
                 >
+                  <Trash2 className="w-4 h-4" />
                   Delete
                 </button>
               </div>

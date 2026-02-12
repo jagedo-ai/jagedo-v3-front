@@ -100,37 +100,45 @@ const AccountUploads = () => {
   /* ---------------- NON-CONTRACTORS ---------------- */
   if (userType !== "contractor") {
     const [documents, setDocuments] = useState({});
+    const userId = user?.id;
 
     useEffect(() => {
-      setDocuments(
-        JSON.parse(localStorage.getItem(`docs-${userType}`)) ||
-        MOCK_UPLOADS[userType] ||
-        {}
-      );
-    }, [userType]);
+      // Use user-specific storage key, fall back to empty object (NOT mock data)
+      const storageKey = userId ? `docs-${userType}-${userId}` : `docs-${userType}`;
+      const saved = localStorage.getItem(storageKey);
+      setDocuments(saved ? JSON.parse(saved) : {});
+    }, [userType, userId]);
 
     const replaceDocument = (file, key) => {
       const url = URL.createObjectURL(file);
       const updated = { ...documents, [key]: url };
       setDocuments(updated);
-      localStorage.setItem(`docs-${userType}`, JSON.stringify(updated));
-      
-      // ✅ NEW: Also save to the expected storage key for completion tracking
-      localStorage.setItem(`uploads_demo_${user?.id}`, JSON.stringify(updated));
-      
-      // ✅ DON'T trigger status update here - wait for Save button click
+      // Use user-specific storage key
+      const storageKey = userId ? `docs-${userType}-${userId}` : `docs-${userType}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+
+      // Also save to the expected storage key for completion tracking
+      if (userId) {
+        localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify(updated));
+      }
+      window.dispatchEvent(new Event('localStorageUpdate'));
     };
 
-    const handleSaveDocuments = () => {
-      // Save documents to localStorage
-      localStorage.setItem(`docs-${userType}`, JSON.stringify(documents));
-      localStorage.setItem(`uploads_demo_${user?.id}`, JSON.stringify(documents));
-      
-      // Trigger completion status update
-      window.dispatchEvent(new Event('storage'));
-      
-      toast.success('Uploads saved successfully');
-    };
+const handleSaveDocuments = () => {
+  // 1️⃣ Get current uploads
+  const uploads = documents;
+
+  // 2️⃣ Save them where sidebar expects
+  localStorage.setItem(
+    `uploads_demo_${user?.id}`,
+    JSON.stringify(uploads)
+  );
+
+  // 3️⃣ Tell sidebar to re-check status
+  window.dispatchEvent(new Event('localStorageUpdate'));
+
+  toast.success("Uploads saved");
+};
 
     const defaultFields = {
       customer: [
@@ -139,20 +147,21 @@ const AccountUploads = () => {
         { label: "KRA PIN", key: "kraPIN" },
       ],
       fundi: [
-        { label: "ID Front", key: "idFrontUrl" },
-        { label: "ID Back", key: "idBackUrl" },
-        { label: "Certificate", key: "certificateUrl" },
+        { label: "ID Front", key: "idFront" },
+        { label: "ID Back", key: "idBack" },
+        { label: "Certificate", key: "certificate" },
         { label: "KRA PIN", key: "kraPIN" },
       ],
       professional: [
-        { label: "ID Front", key: "idFrontUrl" },
-        { label: "ID Back", key: "idBackUrl" },
-        { label: "Academics Certificate", key: "academicCertificateUrl" },
-        { label: "CV", key: "cvUrl" },
+        { label: "ID Front", key: "idFront" },
+        { label: "ID Back", key: "idBack" },
+        { label: "Academics Certificate", key: "academicCertificate" },
+        { label: "CV", key: "cv" },
         { label: "KRA PIN", key: "kraPIN" },
+        { label: "Practice License", key: "practiceLicense" },
       ],
       hardware: [
-        { label: "Business Registration", key: "businessRegistration" },
+        { label: "Certificate of Incorporation", key: "certificateOfIncorporation" },
         { label: "KRA PIN", key: "kraPIN" },
         { label: "Single Business Permit", key: "singleBusinessPermit" },
         { label: "Company Profile", key: "companyProfile" },
@@ -204,10 +213,11 @@ const AccountUploads = () => {
   const [documents, setDocuments] = useState({});
   const [categoryDocs, setCategoryDocs] = useState({});
   const [categories, setCategories] = useState([]);
+  const userId = user?.id;
 
   const loadCategories = () => {
     // Try to load categories from ContractorExperience data first
-    const experienceData = JSON.parse(localStorage.getItem(`contractorExperience_${user?.id}`) || "null");
+    const experienceData = JSON.parse(localStorage.getItem(`contractorExperience_${userId}`) || "null");
     if (experienceData?.categories && experienceData.categories.length > 0) {
       // Extract category names from contractor experience
       const categoryNames = experienceData.categories
@@ -215,22 +225,27 @@ const AccountUploads = () => {
         .map((cat: any) => cat.category);
       setCategories(categoryNames);
     } else {
-      // Fallback to old storage key
+      // Fallback to user-specific storage key
+      const catKey = userId ? `contractor-categories-${userId}` : "contractor-categories";
       setCategories(
-        JSON.parse(localStorage.getItem("contractor-categories") || "[]")
+        JSON.parse(localStorage.getItem(catKey) || "[]")
       );
     }
   };
 
   useEffect(() => {
+    // Use user-specific storage keys
+    const docsKey = userId ? `docs-contractor-${userId}` : "docs-contractor";
+    const catDocsKey = userId ? `contractor-category-docs-${userId}` : "contractor-category-docs";
+
     setDocuments(
-      JSON.parse(localStorage.getItem(`docs-contractor`) || "{}")
+      JSON.parse(localStorage.getItem(docsKey) || "{}")
     );
 
     loadCategories();
 
     setCategoryDocs(
-      JSON.parse(localStorage.getItem("contractor-category-docs") || "{}")
+      JSON.parse(localStorage.getItem(catDocsKey) || "{}")
     );
 
     // Listen for storage changes to update categories
@@ -239,18 +254,24 @@ const AccountUploads = () => {
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [user?.id]);
+  }, [userId]);
 
   const replaceDocument = (file, key) => {
     const url = URL.createObjectURL(file);
     const updated = { ...documents, [key]: url };
     setDocuments(updated);
-    localStorage.setItem("docs-contractor", JSON.stringify(updated));
-    
-    // ✅ NEW: Also save to the expected storage key for completion tracking
-    localStorage.setItem(`uploads_demo_${user?.id}`, JSON.stringify(updated));
-    
-    // ✅ DON'T trigger status update here - wait for Save button click
+    // Use user-specific storage key
+    const docsKey = userId ? `docs-contractor-${userId}` : "docs-contractor";
+    localStorage.setItem(docsKey, JSON.stringify(updated));
+
+    // Also save to the expected storage key for completion tracking
+    if (userId) {
+      localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify({
+        ...updated,
+        ...categoryDocs
+      }));
+      window.dispatchEvent(new Event('localStorageUpdate'));
+    }
   };
 
   const replaceCategoryDoc = (category, type, file) => {
@@ -263,26 +284,37 @@ const AccountUploads = () => {
       }
     };
     setCategoryDocs(updated);
-    localStorage.setItem("contractor-category-docs", JSON.stringify(updated));
-    
-    // ✅ NEW: Also save to the expected storage key for completion tracking
-    localStorage.setItem(`uploads_demo_${user?.id}`, JSON.stringify(updated));
-    
-    // ✅ DON'T trigger status update here - wait for Save button click
+    // Use user-specific storage key
+    const catDocsKey = userId ? `contractor-category-docs-${userId}` : "contractor-category-docs";
+    localStorage.setItem(catDocsKey, JSON.stringify(updated));
+
+    // Also save to the expected storage key for completion tracking
+    if (userId) {
+      localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify({
+        ...documents,
+        ...updated
+      }));
+      window.dispatchEvent(new Event('localStorageUpdate'));
+    }
   };
 
   const handleSaveDocuments = () => {
-    // Save all documents to localStorage
-    localStorage.setItem("docs-contractor", JSON.stringify(documents));
-    localStorage.setItem("contractor-category-docs", JSON.stringify(categoryDocs));
-    localStorage.setItem(`uploads_demo_${user?.id}`, JSON.stringify({
-      ...documents,
-      ...categoryDocs
-    }));
-    
+    // Save all documents to user-specific localStorage keys
+    const docsKey = userId ? `docs-contractor-${userId}` : "docs-contractor";
+    const catDocsKey = userId ? `contractor-category-docs-${userId}` : "contractor-category-docs";
+
+    localStorage.setItem(docsKey, JSON.stringify(documents));
+    localStorage.setItem(catDocsKey, JSON.stringify(categoryDocs));
+    if (userId) {
+      localStorage.setItem(`uploads_demo_${userId}`, JSON.stringify({
+        ...documents,
+        ...categoryDocs
+      }));
+    }
+
     // Trigger completion status update
-    window.dispatchEvent(new Event('storage'));
-    
+    window.dispatchEvent(new Event('localStorageUpdate'));
+
     toast.success('Uploads saved successfully');
   };
 
