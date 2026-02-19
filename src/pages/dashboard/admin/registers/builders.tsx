@@ -75,6 +75,27 @@ export default function BuildersAdmin() {
 
   const navigate = useNavigate();
 
+  // Enrich builders with address data from profile completion localStorage
+  const enrichWithAddress = (buildersList: Builder[]): Builder[] => {
+    return buildersList.map(builder => {
+      // Only enrich if county/subCounty are missing
+      if (builder.county && builder.subCounty) return builder;
+      try {
+        const addressKey = `address_${builder.id}`;
+        const addressStr = localStorage.getItem(addressKey);
+        if (addressStr) {
+          const address = JSON.parse(addressStr);
+          return {
+            ...builder,
+            county: builder.county || address.county || "",
+            subCounty: builder.subCounty || address.subCounty || "",
+          };
+        }
+      } catch { /* ignore */ }
+      return builder;
+    });
+  };
+
   // Load builders from localStorage, or initialize with mock data if empty
   useEffect(() => {
     setLoading(true);
@@ -85,21 +106,21 @@ export default function BuildersAdmin() {
         // Use existing data from localStorage (preserves user changes)
         const parsedBuilders = JSON.parse(stored);
         if (Array.isArray(parsedBuilders) && parsedBuilders.length > 0) {
-          setBuilders(parsedBuilders);
+          setBuilders(enrichWithAddress(parsedBuilders));
         } else {
           // Empty or invalid array - seed with mock data
           localStorage.setItem("builders", JSON.stringify(mockBuilders));
-          setBuilders(mockBuilders);
+          setBuilders(enrichWithAddress(mockBuilders));
         }
       } else {
         // No data exists - initialize with mock data (first time only)
         localStorage.setItem("builders", JSON.stringify(mockBuilders));
-        setBuilders(mockBuilders);
+        setBuilders(enrichWithAddress(mockBuilders));
       }
     } catch (err) {
       setError("Failed to load builders");
       // Fallback to mock data on error, but don't overwrite localStorage
-      setBuilders(mockBuilders);
+      setBuilders(enrichWithAddress(mockBuilders));
     } finally {
       setLoading(false);
     }
@@ -111,7 +132,7 @@ export default function BuildersAdmin() {
       try {
         const stored = JSON.parse(localStorage.getItem("builders") || "null");
         if (stored && Array.isArray(stored) && stored.length > 0) {
-          setBuilders(stored);
+          setBuilders(enrichWithAddress(stored));
         }
       } catch (err) {
         console.error("Failed to refresh builders:", err);

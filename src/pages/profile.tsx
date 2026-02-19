@@ -63,6 +63,7 @@ function ProfilePage() {
                 return <AccountInfo />;
         }
     };
+    
 
     const isServiceProvider =
         user?.userType === "FUNDI" ||
